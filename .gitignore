@@ -63,3 +63,4 @@ server.log
 /mini-services
 /tests
 node_modules/.prisma
+/scripts/verify-*
