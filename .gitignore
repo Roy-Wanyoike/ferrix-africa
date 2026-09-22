@@ -64,3 +64,6 @@ server.log
 /tests
 node_modules/.prisma
 /scripts/verify-*
+
+# sandbox runtime state
+/.zscripts/
