@@ -6,13 +6,17 @@ import {
   Activity,
   BadgeCheck,
   Bot,
+  Briefcase,
   CheckCircle2,
   ClipboardList,
   FileClock,
+  GraduationCap,
   Handshake,
   PhoneCall,
   RefreshCcw,
   ShieldAlert,
+  ShieldCheck,
+  Star,
   UserPlus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,6 +51,93 @@ const priorityColors: Record<string, string> = {
   normal: "bg-stone-200 text-stone-700",
   low: "bg-stone-100 text-stone-500",
 };
+
+interface TrackEntry {
+  id: string;
+  kind: string;
+  title: string;
+  org: string | null;
+  detail: string | null;
+  rating: number | null;
+  verified: boolean;
+  verifiedBy: string | null;
+  occurredAt: string;
+}
+
+// The worker's verified work passport, shown beside the AI summary.
+// refreshKey (status/updatedAt) forces a refetch after coordinator actions.
+function TrackRecordSection({ candidateId, lang, refreshKey }: { candidateId: string; lang: Lang; refreshKey: string }) {
+  const [entries, setEntries] = useState<TrackEntry[]>([]);
+
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/track-record?candidateId=${candidateId}`)
+      .then((r) => r.json())
+      .then((d) => live && setEntries(d.entries ?? []))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [candidateId, refreshKey]);
+
+  const kindLabel = (k: string) =>
+    k === "PLACEMENT"
+      ? t("track.kind.placement", lang)
+      : k === "TRAINING"
+        ? t("track.kind.training", lang)
+        : t("track.kind.review", lang);
+
+  return (
+    <Card className="border-emerald-200 bg-emerald-50/40">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm font-bold text-stone-800">
+          <ShieldCheck className="h-4 w-4 text-emerald-700" />
+          {t("case.track", lang)}
+          <span className="ml-auto text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+            {entries.length} {lang === "sw" ? "rekodi" : "records"}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {entries.length === 0 ? (
+          <p className="text-xs italic text-stone-500">{t("track.empty", lang)}</p>
+        ) : (
+          <ul className="flex flex-wrap gap-2">
+            {entries.map((e) => (
+              <li
+                key={e.id}
+                className="max-w-full rounded-xl border border-emerald-200 bg-white px-3 py-2"
+              >
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {e.kind === "PLACEMENT" ? (
+                    <Briefcase className="h-3 w-3 text-emerald-600" />
+                  ) : e.kind === "TRAINING" ? (
+                    <GraduationCap className="h-3 w-3 text-sky-600" />
+                  ) : (
+                    <Star className="h-3 w-3 text-amber-500" />
+                  )}
+                  <span className="text-[9px] font-black uppercase tracking-wide text-stone-400">
+                    {kindLabel(e.kind)}
+                  </span>
+                  {e.rating != null && (
+                    <span className="text-[10px] font-bold text-amber-600">{"★".repeat(e.rating)}</span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-xs font-bold text-stone-800">{e.title}</div>
+                {e.org && <div className="text-[10px] text-stone-500">{e.org}</div>}
+                {e.verifiedBy && (
+                  <div className="mt-0.5 text-[9px] font-semibold text-emerald-700">
+                    ✓ {t("track.verifiedBy", lang)} {e.verifiedBy}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function CoordinatorView({ lang, focusRef }: Props) {
   const { toast } = useToast();
@@ -256,6 +347,13 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
                 </dl>
               </CardContent>
             </Card>
+
+            {/* worker track record */}
+            <TrackRecordSection
+              candidateId={selected.candidate.id}
+              lang={lang}
+              refreshKey={`${selected.status}-${selected.updatedAt}`}
+            />
 
             {/* matches */}
             {selected.matches.length > 0 && (

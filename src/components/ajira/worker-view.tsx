@@ -23,6 +23,7 @@ import {
   MatchList,
   ProfileCard,
   SignalsPanel,
+  TrackRecordPanel,
 } from "./worker-panels";
 
 interface Props {
@@ -243,11 +244,11 @@ export default function WorkerView({ lang, onHandoff }: Props) {
             <div className="flex items-center gap-2.5 bg-[#075E54] px-3.5 py-3 text-white">
               <ArrowLeft className="h-4 w-4 opacity-80" />
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-xs font-black">
-                AC
+                FX
               </div>
               <div className="min-w-0 flex-1 leading-tight">
                 <div className="truncate text-sm font-bold">
-                  Ajira Copilot{persona ? ` · ${persona.name}` : ""}
+                  Ferrix{persona ? ` · ${persona.name}` : ""}
                 </div>
                 <div className="text-[10px] opacity-80">
                   {listening ? t("voice.listening", lang) : "AI · online"}
@@ -401,6 +402,13 @@ export default function WorkerView({ lang, onHandoff }: Props) {
         {/* ---------- RIGHT COLUMN ---------- */}
         <div className="space-y-5">
           <SignalsPanel signals={signals} lang={lang} mode={mode} />
+          {candidateId && (
+            <TrackRecordPanel
+              candidateId={candidateId}
+              lang={lang}
+              workerName={persona?.name}
+            />
+          )}
           {result && <ProfileCard profile={result.profile} lang={lang} />}
           {result && <MatchList matches={result.matches} lang={lang} />}
           {result && candidateId && <AssetPanel candidateId={candidateId} lang={lang} />}

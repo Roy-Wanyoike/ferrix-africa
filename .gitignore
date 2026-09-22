@@ -52,3 +52,14 @@ prompt
 server.log
 # Skills directory
 /skills/
+# sandbox / local-only (never publish)
+/upload
+/download
+/worklog.md
+/agent-ctx
+/db/*.db*
+/scripts/verify
+/examples
+/mini-services
+/tests
+node_modules/.prisma

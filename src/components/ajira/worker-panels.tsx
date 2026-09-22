@@ -1,17 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   BadgeCheck,
   Bot,
+  Briefcase,
   Copy,
   Cpu,
   FileText,
+  GraduationCap,
   Handshake,
   Loader2,
   MapPin,
   ScanSearch,
+  ShieldCheck,
+  Star,
   Wallet,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -217,6 +221,180 @@ export function MatchList({ matches, lang }: { matches: ScoredMatch[]; lang: Lan
           </Card>
         </motion.div>
       ))}
+    </motion.div>
+  );
+}
+
+/* ---------------- Track record (work passport) ---------------- */
+
+interface TrackEntry {
+  id: string;
+  kind: string;
+  title: string;
+  org: string | null;
+  detail: string | null;
+  rating: number | null;
+  verified: boolean;
+  verifiedBy: string | null;
+  occurredAt: string;
+}
+
+interface TrackSummary {
+  placements: number;
+  trainings: number;
+  reviews: number;
+  avgRating: number | null;
+  verifiedCount: number;
+  lastVerifiedAt: string | null;
+}
+
+const kindStyles: Record<string, string> = {
+  PLACEMENT: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  TRAINING: "bg-sky-100 text-sky-800 border-sky-200",
+  REVIEW: "bg-amber-100 text-amber-800 border-amber-200",
+};
+
+export function TrackRecordPanel({
+  candidateId,
+  lang,
+  workerName,
+}: {
+  candidateId: string;
+  lang: Lang;
+  workerName?: string;
+}) {
+  const [entries, setEntries] = useState<TrackEntry[] | null>(null);
+  const [summary, setSummary] = useState<TrackSummary | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/track-record?candidateId=${candidateId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!live) return;
+        setEntries(d.entries ?? []);
+        setSummary(d.summary ?? null);
+      })
+      .catch(() => {
+        if (live) setEntries([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [candidateId]);
+
+  const shareText = () => {
+    const lines = [
+      `${workerName || "Worker"} — verified track record (Ferrix work passport)`,
+      ...(
+        entries ?? []
+      ).map(
+        (e) =>
+          `• ${e.kind} — ${e.title}${e.org ? ` @ ${e.org}` : ""}${e.rating ? ` (${e.rating}★)` : ""} — verified by ${e.verifiedBy ?? "coordinator"}`
+      ),
+    ];
+    return lines.join("\n");
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(shareText());
+    } catch {
+      /* clipboard unavailable in some contexts */
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  };
+
+  const fmtDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleDateString(lang === "sw" ? "sw-KE" : "en-KE", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return new Date(iso).toLocaleDateString();
+    }
+  };
+
+  const kindLabel = (k: string) =>
+    k === "PLACEMENT"
+      ? t("track.kind.placement", lang)
+      : k === "TRAINING"
+        ? t("track.kind.training", lang)
+        : t("track.kind.review", lang);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
+      <Card className="border-emerald-300 bg-gradient-to-br from-emerald-50/70 to-white">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-bold text-stone-800">
+            <ShieldCheck className="h-4 w-4 text-emerald-700" />
+            {t("track.title", lang)}
+          </CardTitle>
+          <p className="text-xs text-stone-500">{t("track.sub", lang)}</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {summary && summary.verifiedCount > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Badge className="border border-emerald-200 bg-emerald-600 text-white">
+                <Briefcase className="mr-1 h-3 w-3" /> {summary.placements} {t("track.placements", lang)}
+              </Badge>
+              {summary.trainings > 0 && (
+                <Badge variant="outline" className="border border-sky-200 bg-sky-50 text-sky-800">
+                  <GraduationCap className="mr-1 h-3 w-3" /> {summary.trainings} {t("track.trainings", lang)}
+                </Badge>
+              )}
+              {summary.avgRating != null && (
+                <Badge variant="outline" className="border border-amber-200 bg-amber-50 text-amber-800">
+                  <Star className="mr-1 h-3 w-3" /> {summary.avgRating}★ {t("track.rating", lang)}
+                </Badge>
+              )}
+            </div>
+          )}
+
+          {!entries ? (
+            <div className="flex items-center gap-2 text-xs text-stone-400">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("common.loading", lang)}
+            </div>
+          ) : entries.length === 0 ? (
+            <p className="text-xs italic text-stone-500">{t("track.empty", lang)}</p>
+          ) : (
+            <ol className="relative space-y-3 border-l-2 border-emerald-200 pl-4">
+              {entries.map((e) => (
+                <li key={e.id} className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className={`text-[9px] font-black tracking-wide ${kindStyles[e.kind] ?? ""}`}>
+                      {kindLabel(e.kind)}
+                    </Badge>
+                    <span className="text-xs font-bold text-stone-800">{e.title}</span>
+                    {e.rating != null && (
+                      <span className="text-[10px] font-bold text-amber-600">{"★".repeat(e.rating)}</span>
+                    )}
+                  </div>
+                  {e.detail && <p className="text-xs leading-relaxed text-stone-600">{e.detail}</p>}
+                  <div className="text-[10px] text-stone-400">
+                    {e.org ? `${e.org} · ` : ""}{fmtDate(e.occurredAt)}
+                    {e.verified && e.verifiedBy && (
+                      <span className="font-semibold text-emerald-700"> · {t("track.verifiedBy", lang)} {e.verifiedBy}</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {entries && entries.length > 0 && (
+            <Button onClick={copy} variant="outline" className="w-full font-bold">
+              <Copy className="h-4 w-4" />
+              {copied ? t("asset.copied", lang) : t("track.share", lang)}
+            </Button>
+          )}
+          <p className="text-[10px] leading-relaxed text-stone-400">{t("track.autoNote", lang)}</p>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 }

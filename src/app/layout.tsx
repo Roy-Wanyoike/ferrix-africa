@@ -14,17 +14,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ajira Copilot — AI prepares. People place.",
+  title: "Ferrix — AI prepares. People place.",
   description:
     "Voice-first livelihood copilot for Nairobi's informal workforce. Hack for Humanity Nairobi 2026: job displacement, technical literacy, accessibility.",
-  keywords: ["Ajira Copilot", "Hack for Humanity", "Nairobi", "AI", "livelihood", "informal economy"],
+  keywords: ["Ferrix", "Ajira Copilot", "Hack for Humanity", "Nairobi", "AI", "livelihood", "informal economy"],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "Ajira Copilot — AI prepares. People place.",
+    title: "Ferrix — AI prepares. People place.",
     description: "AI prepares the worker. People make the placement.",
-    siteName: "Ajira Copilot",
+    siteName: "Ferrix",
     type: "website",
   },
 };

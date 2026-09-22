@@ -73,6 +73,18 @@ export async function PATCH(
           where: { id: existing.candidateId },
           data: { status: "placed" },
         });
+        // Every human-verified placement builds the worker's portable track record.
+        await db.trackRecordEntry.create({
+          data: {
+            candidateId: existing.candidateId,
+            kind: "PLACEMENT",
+            title: opp.title,
+            org: opp.provider.replace(/\s*\(demo[^)]*\)\s*/i, "").trim(),
+            detail: `Placed: ${opp.title} — ${opp.payRange}. Human-verified by coordinator.`,
+            verified: true,
+            verifiedBy: existing.assignedTo || MENTOR,
+          },
+        });
         break;
       }
       case "resolve": {

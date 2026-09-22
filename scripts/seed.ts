@@ -1,173 +1,15 @@
-// Seed the demo dataset: opportunities + a lively case queue.
+// Seed the demo dataset: opportunities + a lively case queue + track records.
 // Run: bun run scripts/seed.ts
 import { PrismaClient } from "@prisma/client";
+import { OPPORTUNITIES } from "../src/lib/data";
 
 const db = new PrismaClient();
-
-const OPPORTUNITIES = [
-  {
-    title: "Sell Online with WhatsApp Catalogs",
-    type: "COURSE",
-    provider: "Ajira Digital (demo partner feed)",
-    location: "Online + Kibera youth hub",
-    payRange: "Free + data stipend",
-    duration: "1 week, self-paced",
-    description:
-      "Set up a WhatsApp Business catalog, price your goods, take orders and broadcast weekly offers. Built for market traders.",
-    tags: ["whatsapp", "sales", "pricing", "mobile-money", "marketing"],
-    actionUrl: "https://ajira.digital",
-  },
-  {
-    title: "Digital Marketing Basics",
-    type: "COURSE",
-    provider: "Ajira Digital (demo partner feed)",
-    location: "Online",
-    payRange: "Free",
-    duration: "4 weeks",
-    description:
-      "Promote a real business on Facebook, WhatsApp and TikTok. Ends with a small portfolio and a certificate.",
-    tags: ["marketing", "social-media", "whatsapp", "sales", "design"],
-    actionUrl: "https://ajira.digital",
-  },
-  {
-    title: "Virtual Assistant Starter",
-    type: "COURSE",
-    provider: "Ajira Digital (demo partner feed)",
-    location: "Online",
-    payRange: "Free",
-    duration: "3 weeks",
-    description:
-      "Email, scheduling, typing and customer chat — the starter toolkit for online assistant work from home.",
-    tags: ["typing", "english", "data-entry", "customer-service", "whatsapp"],
-    actionUrl: "https://ajira.digital",
-  },
-  {
-    title: "Data Entry & Transcription Foundations",
-    type: "COURSE",
-    provider: "eMobilis (demo partner feed)",
-    location: "Online / CBD lab",
-    payRange: "Free",
-    duration: "2 weeks",
-    description:
-      "Typing speed, spreadsheets, and clean transcription habits. Gateway skill for online micro-work.",
-    tags: ["typing", "data-entry", "english"],
-  },
-  {
-    title: "Boda Delivery Partner",
-    type: "GIG",
-    provider: "Glovo (demo partner feed)",
-    location: "Kilimani, CBD, Westlands",
-    payRange: "KSh 900–1,600/day",
-    duration: "Flexible shifts",
-    description:
-      "Food and parcel delivery on your own motorcycle. Requires ID, helmet and a smartphone. Weekly payouts to M-Pesa.",
-    tags: ["driving", "delivery", "navigation", "customer-service", "mobile-money"],
-  },
-  {
-    title: "Estate Courier Rider",
-    type: "GIG",
-    provider: "Wasili Deliveries (demo partner feed)",
-    location: "South B/C, Lang'ata, Kibera edge",
-    payRange: "KSh 700–1,200/day",
-    duration: "Mon–Sat, daytime",
-    description:
-      "Documents and parcels between estates and CBD. Daytime routes that fit around other hustles.",
-    tags: ["driving", "delivery", "navigation", "mobile-money"],
-  },
-  {
-    title: "Catalog Seller (part-time)",
-    type: "GIG",
-    provider: "Ujuzi Hub partner shops",
-    location: "Remote / home-based",
-    payRange: "Commission, KSh 300–800/day",
-    duration: "2–3 hrs/day",
-    description:
-      "Run WhatsApp catalogs and take orders for partner shops. Commission per confirmed order.",
-    tags: ["whatsapp", "sales", "customer-service", "mobile-money"],
-  },
-  {
-    title: "M-Pesa Shop Attendant",
-    type: "JOB",
-    provider: "Neighborhood agent, Kasarani (demo listing)",
-    location: "Kasarani",
-    payRange: "KSh 10,000–15,000/mo + commission",
-    duration: "Full-time",
-    description:
-      "Handle deposits, withdrawals and float. Needs clean cash handling and patience with customers.",
-    tags: ["mobile-money", "cash-handling", "customer-service", "swahili"],
-  },
-  {
-    title: "Supermarket Floor Supervisor",
-    type: "JOB",
-    provider: "Freshmark Supermarkets (demo listing)",
-    location: "Kasarani / Roysambu",
-    payRange: "KSh 18,000–24,000/mo",
-    duration: "Full-time",
-    description:
-      "Shelf planning, stock counts and supervising attendants. POS experience valued over certificates.",
-    tags: ["inventory", "pos", "customer-service", "english", "stock-management"],
-  },
-  {
-    title: "Online Transcription (entry level)",
-    type: "MICROWORK",
-    provider: "Global platforms (demo partner feed)",
-    location: "Remote",
-    payRange: "Pay per audio minute",
-    duration: "Flexible nights",
-    description:
-      "Type out recordings — interviews, sermons, podcasts. Entry tests provided; earnings grow with accuracy.",
-    tags: ["typing", "english", "data-entry"],
-  },
-  {
-    title: "Social Media Manager — local shops",
-    type: "MICROWORK",
-    provider: "Direct clients (demo listing)",
-    location: "Remote / client sites",
-    payRange: "KSh 4,000–8,000/mo per client",
-    duration: "Evenings",
-    description:
-      "Post 3x/week for a salon, butchery or hardware: photos, offers, WhatsApp replies. One phone, many shops.",
-    tags: ["social-media", "marketing", "design", "whatsapp", "sales"],
-  },
-  {
-    title: "School Uniform Micro-Contract",
-    type: "GIG",
-    provider: "Kamukunji school cluster (demo listing)",
-    location: "Kamukunji / home workshop",
-    payRange: "Per piece, KSh 150–400",
-    duration: "Jan & May peaks",
-    description:
-      "Stitch school uniforms against measured orders. Two schools in the cluster are accepting new fundis via the hub.",
-    tags: ["sewing", "design", "pricing", "negotiation"],
-  },
-  {
-    title: "Canva Design for Small Business",
-    type: "COURSE",
-    provider: "eMobilis (demo partner feed)",
-    location: "Online",
-    payRange: "Free",
-    duration: "3 weeks",
-    description:
-      "Flyers, price lists and product photos using free tools on a phone. Portfolio built on your own hustle.",
-    tags: ["design", "marketing", "social-media", "photos"],
-  },
-  {
-    title: "Home Catering for Office Lunches",
-    type: "GIG",
-    provider: "CBD office clusters (demo listing)",
-    location: "Home kitchen + CBD delivery",
-    payRange: "KSh 150–250/plate",
-    duration: "Weekdays",
-    description:
-      "Cook chapati/pilau for 10–30 plates daily. The hub handles collection and delivery riders.",
-    tags: ["cooking", "sales", "customer-service", "mobile-money", "pricing"],
-  },
-];
 
 async function main() {
   console.log("Seeding…");
 
   // Wipe demo state (idempotent reseed)
+  await db.trackRecordEntry.deleteMany();
   await db.caseEvent.deleteMany();
   await db.case.deleteMany();
   await db.match.deleteMany();
@@ -266,6 +108,45 @@ async function main() {
     });
   }
 
+  // Track record: Joseph has a verified placement + review + prior training
+  await db.trackRecordEntry.create({
+    data: {
+      candidateId: c1.id,
+      kind: "PLACEMENT",
+      title: "Estate Courier Rider",
+      org: "Wasili Deliveries",
+      detail: "Placed after ID and helmet verification. Daytime estate-to-CBD routes.",
+      verified: true,
+      verifiedBy: "Wanjiku M. (Ujuzi Hub)",
+      occurredAt: hoursAgo(24),
+    },
+  });
+  await db.trackRecordEntry.create({
+    data: {
+      candidateId: c1.id,
+      kind: "REVIEW",
+      title: "Reliability review — trial week",
+      org: "Wasili Deliveries",
+      detail: "41 deliveries, 95% on-time, zero parcel losses. Dispatcher would rehire.",
+      rating: 5,
+      verified: true,
+      verifiedBy: "Wanjiku M. (Ujuzi Hub)",
+      occurredAt: hoursAgo(26),
+    },
+  });
+  await db.trackRecordEntry.create({
+    data: {
+      candidateId: c1.id,
+      kind: "TRAINING",
+      title: "Rider Safety & Road Signage",
+      org: "Ajira Digital (demo partner feed)",
+      detail: "Completed certificate. Safe-riding module passed first attempt.",
+      verified: true,
+      verifiedBy: "Ajira Digital records check",
+      occurredAt: hoursAgo(24 * 34),
+    },
+  });
+
   // ---- Demo case 2: CONTACTED (mid-workflow) ----
   const c2 = await db.candidate.create({
     data: {
@@ -335,6 +216,20 @@ async function main() {
       data: { caseId: case2.id, actor, action, detail, createdAt: hoursAgo(h) },
     });
   }
+
+  // Track record: Fatuma just started a training
+  await db.trackRecordEntry.create({
+    data: {
+      candidateId: c2.id,
+      kind: "TRAINING",
+      title: "Sell Online with WhatsApp Catalogs",
+      org: "Ajira Digital (demo partner feed)",
+      detail: "Enrolled with data stipend. Module 2 of 5 complete.",
+      verified: true,
+      verifiedBy: "Wanjiku M. (Ujuzi Hub)",
+      occurredAt: hoursAgo(12),
+    },
+  });
 
   // ---- Demo case 3: NEW, HIGH priority ----
   const c3 = await db.candidate.create({
@@ -421,6 +316,7 @@ async function main() {
       createdAt: hoursAgo(5.9),
     },
   });
+  // Grace is brand new — empty track record (shows the "start your passport" state)
 
   // ---- Demo case 4: RESOLVED (older, shows steady volume) ----
   const c4 = await db.candidate.create({
@@ -493,12 +389,42 @@ async function main() {
     });
   }
 
+  // Track record: Otieno has a completed contract + review
+  await db.trackRecordEntry.create({
+    data: {
+      candidateId: c4.id,
+      kind: "PLACEMENT",
+      title: "School Uniform Micro-Contract",
+      org: "Kamukunji school cluster",
+      detail: "20 pieces delivered and paid. Repeat order booked for May intake.",
+      verified: true,
+      verifiedBy: "Kamau N. (Kamukunji CBO)",
+      occurredAt: hoursAgo(96),
+    },
+  });
+  await db.trackRecordEntry.create({
+    data: {
+      candidateId: c4.id,
+      kind: "REVIEW",
+      title: "Quality review — uniform batch",
+      org: "Kamukunji school cluster",
+      detail: "Zero rejections across 20 pieces. Sizes and stitching to spec.",
+      rating: 5,
+      verified: true,
+      verifiedBy: "Kamau N. (Kamukunji CBO)",
+      occurredAt: hoursAgo(74),
+    },
+  });
+
   const counts = await db.$transaction([
     db.opportunity.count(),
     db.candidate.count(),
     db.case.count(),
+    db.trackRecordEntry.count(),
   ]);
-  console.log(`Seed done: ${counts[0]} opportunities, ${counts[1]} candidates, ${counts[2]} cases`);
+  console.log(
+    `Seed done: ${counts[0]} opportunities, ${counts[1]} candidates, ${counts[2]} cases, ${counts[3]} track-record entries`
+  );
 }
 
 main()

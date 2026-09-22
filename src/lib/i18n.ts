@@ -1,5 +1,7 @@
 import type { Lang } from "./data";
 
+export type { Lang };
+
 // UI strings — EN/SW for the hackathon language toggle.
 export const UI: Record<Lang, Record<string, string>> = {
   en: {
@@ -10,7 +12,7 @@ export const UI: Record<Lang, Record<string, string>> = {
     "hero.title1": "AI prepares the worker.",
     "hero.title2": "People make the placement.",
     "hero.sub":
-      "Ajira Copilot is a voice-first livelihood copilot for Nairobi's informal workforce. It listens in Swahili or English, turns real skills into a structured profile, matches verified opportunities — then hands over to a human mentor who verifies and places.",
+      "Ferrix is a voice-first livelihood copilot for Nairobi's informal workforce — mama fuas, fundis, traders and riders. It listens in Swahili or English, turns real skills into a structured profile, matches verified opportunities — then hands over to a human mentor who verifies and places.",
     "hero.cta.worker": "Try the worker journey",
     "hero.cta.coordinator": "See the coordinator side",
     "hero.thememap": "Built on the hackathon's official themes",
@@ -40,7 +42,7 @@ export const UI: Record<Lang, Record<string, string>> = {
     "footer.note":
       "Demo dataset: opportunities stand in for live partner feeds (Ajira Digital, platforms, employers). Built for Hack for Humanity Nairobi 2026.",
     "worker.title": "Worker intake",
-    "worker.sub": "WhatsApp-style intake, exactly how a worker meets Ajira Copilot.",
+    "worker.sub": "WhatsApp-style intake, exactly how a worker meets Ferrix.",
     "chat.placeholder": "Type a message…",
     "chat.build": "Build my profile",
     "chat.profile": "Tisha wasifu / Show profile",
@@ -84,6 +86,19 @@ export const UI: Record<Lang, Record<string, string>> = {
     "case.place": "Record placement",
     "case.resolve": "Resolve",
     "case.timeline": "Audit trail",
+    "track.title": "Track record — work passport",
+    "track.sub": "Verified work history, built from human-checked placements and trainings",
+    "track.empty": "No verified records yet — the first human placement starts this passport",
+    "track.placements": "verified placements",
+    "track.trainings": "trainings",
+    "track.rating": "avg rating",
+    "track.verifiedBy": "Verified by",
+    "track.share": "Share as text",
+    "track.kind.placement": "PLACEMENT",
+    "track.kind.training": "TRAINING",
+    "track.kind.review": "REVIEW",
+    "track.autoNote": "Every human-verified placement is recorded here automatically — a portable work history for workers without formal CVs.",
+    "case.track": "Worker track record",
     "case.assignee": "Assigned mentor",
     "case.priority.high": "High priority",
     "case.priority.normal": "Normal",
@@ -109,7 +124,7 @@ export const UI: Record<Lang, Record<string, string>> = {
     "hero.title1": "AI huandaa mfanyakazi.",
     "hero.title2": "Watu hutia sahihi kazi.",
     "hero.sub":
-      "Ajira Copilot ni msaidizi wa ajira kwa wafanyakazi wa Nairobi. Anasikiliza kwa Kiswahili au Kiingereza, anageuza ujuzi wa kweli kuwa wasifu, anapatanisha fursa — kisha anamkabidhi mtu wa kweli atakayethibitisha na kuweka kazini.",
+      "Ferrix ni msaidizi wa ajira kwa wafanyakazi wa Nairobi — mama fua, mafundi, wauzaji na mapanda bodaboda. Anasikiliza kwa Kiswahili au Kiingereza, anageuza ujuzi wa kweli kuwa wasifu, anapatanisha fursa — kisha anamkabidhi mtu wa kweli atakayethibitisha na kuweka kazini.",
     "hero.cta.worker": "Jaribu safari ya mfanyakazi",
     "hero.cta.coordinator": "Ona upande wa mratibu",
     "hero.thememap": "Imejengwa juu ya mada rasmi za hackathon",
@@ -139,7 +154,7 @@ export const UI: Record<Lang, Record<string, string>> = {
     "footer.note":
       "Data ya onyesho: fursa hizi ni mfano wa milisho ya wadau halisi (Ajira Digital, majukwaa, wafanyabiashara). Imejengwa kwa Hack for Humanity Nairobi 2026.",
     "worker.title": "Usajili wa mfanyakazi",
-    "worker.sub": "Mazungumzo ya mtindo wa WhatsApp — jinsi mfanyakazi anakutana na Ajira Copilot.",
+    "worker.sub": "Mazungumzo ya mtindo wa WhatsApp — jinsi mfanyakazi anakutana na Ferrix.",
     "chat.placeholder": "Andika ujumbe…",
     "chat.build": "Tengeneza wasifu wangu",
     "chat.profile": "Onyesha wasifu",
@@ -183,6 +198,19 @@ export const UI: Record<Lang, Record<string, string>> = {
     "case.place": "Rekodi kuwekwa kazi",
     "case.resolve": "Funga",
     "case.timeline": "Kumbukumbu ya uthibitisho",
+    "track.title": "Rekodi ya kazi — pasipoti ya kazi",
+    "track.sub": "Historia ya kazi iliyothibitishwa, kutoka kwa kuwekwa kazi na mafunzo yaliyokaguliwa",
+    "track.empty": "Hakuna rekodi bado — kuwekwa kazi kwa mara ya kwanza kunaanza pasipoti hii",
+    "track.placements": "kuwekwa kazi kunakiri",
+    "track.trainings": "mafunzo",
+    "track.rating": "wastani wa nyota",
+    "track.verifiedBy": "Imethibitishwa na",
+    "track.share": "Sambaza kama maandishi",
+    "track.kind.placement": "KUWEKWA KAZI",
+    "track.kind.training": "MAFUNZO",
+    "track.kind.review": "MAPITIO",
+    "track.autoNote": "Kila kuwekwa kazi kunakiri hurekodiwa hapa moja kwa moja — historia ya kazi inayobebeka kwa wafanyakazi wasio na CV rasmi.",
+    "case.track": "Rekodi ya kazi ya mfanyakazi",
     "case.assignee": "Msimamizi aliyepeewa",
     "case.priority.high": "Kipaumbele cha juu",
     "case.priority.normal": "Kawaida",

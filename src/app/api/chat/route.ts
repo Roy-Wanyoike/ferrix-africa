@@ -12,8 +12,8 @@ import { INTAKE_SYSTEM_PROMPT, llmChat } from "@/lib/ai";
 export const dynamic = "force-dynamic";
 
 const INTRO: Record<Lang, string> = {
-  en: "Hello! I'm Ajira Copilot — I help workers like you find real opportunities. I'll ask a few short questions, then build your profile and connect you to a human mentor. To start: what work do you do these days?",
-  sw: "Habari! Mimi ni Ajira Copilot — nasaidia wafanyakazi kama wewe kupata fursa halisi. Nitauliza maswali machache, kisha nitatengeneza wasifu wako na kukuhusisha na msimamizi wa binadamu. Kuanzia: unafanya kazi gani siku hizi?",
+  en: "Hello! I'm Ferrix — I help workers like you find real opportunities. I'll ask a few short questions, then build your profile and connect you to a human mentor. To start: what work do you do these days?",
+  sw: "Habari! Mimi ni Ferrix — nasaidia wafanyakazi kama wewe kupata fursa halisi. Nitauliza maswali machache, kisha nitatengeneza wasifu wako na kukuhusisha na msimamizi wa binadamu. Kuanzia: unafanya kazi gani siku hizi?",
 };
 
 export async function POST(req: NextRequest) {

@@ -1,5 +1,7 @@
 generator client {
   provider = "prisma-client-js"
+  // "rhel-openssl-3.0.x" keeps the generated client deployable on Vercel (Amazon Linux)
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -30,6 +32,24 @@ model Candidate {
   messages        Message[]
   matches         Match[]
   cases           Case[]
+  trackRecord     TrackRecordEntry[]
+}
+
+// Portable, verifiable work history — the worker's "work passport".
+// Built from human-verified placements, completed trainings and employer reviews.
+model TrackRecordEntry {
+  id          String    @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  kind        String    // PLACEMENT | TRAINING | REVIEW
+  title       String
+  org         String?
+  detail      String?
+  rating      Int? // 1–5, only for REVIEWS
+  verified    Boolean   @default(true) // demo: entries are human-verified by design
+  verifiedBy  String?
+  occurredAt  DateTime  @default(now())
+  createdAt   DateTime  @default(now())
 }
 
 model Message {

@@ -1,4 +1,4 @@
-// Ajira Copilot — demo data layer
+// Ferrix (Ajira Copilot) — demo data layer
 // Personas, curated Nairobi opportunity dataset, fallback conversation script.
 // NOTE FOR JUDGES: opportunities are a curated demo dataset standing in for
 // live partner feeds (Ajira Digital, platforms, employers).
@@ -38,6 +38,26 @@ export interface Persona {
 }
 
 export const PERSONAS: Persona[] = [
+  {
+    key: "mama_fua",
+    label: "Mama fua — cleaner & laundry",
+    labelSw: "Mama fua — naosha na kufua",
+    emoji: "🧼",
+    name: "Purity",
+    location: "Pipeline, Nairobi",
+    phone: "+254 7•• ••• 465",
+    quickStart:
+      "Sasa! Mimi ni Purity, nafanya kazi za mama fua Pipeline — kusafisha nyumba na kufua nguo. Nataka kazi zaidi za kila siku.",
+    chipColor: "bg-teal-50 text-teal-800 border-teal-200",
+    baseline: {
+      skills: ["cleaning", "laundry", "household", "customer-service", "mobile-money", "swahili"],
+      experience: "5 years cleaning homes and doing laundry in Pipeline and Nairobi West, three regular families",
+      digitalLiteracy: "Basic smartphone; WhatsApp voice notes and M-Pesa; low typing confidence",
+      goal: "More daily cleaning gigs and steady weekly clients",
+      constraints: ["data-cost", "smartphone-basics"],
+      priority: "normal",
+    },
+  },
   {
     key: "mama_mboga",
     label: "Mama mboga — market vendor",
@@ -206,15 +226,125 @@ export const OPPORTUNITIES: OpportunitySeed[] = [
     tags: ["driving", "delivery", "navigation", "mobile-money"],
   },
   {
-    title: "Catalog Seller (part-time)",
+    title: "Mama Fua — Household Cleaning Day Gigs",
     type: "GIG",
-    provider: "Ujuzi Hub partner shops",
-    location: "Remote / home-based",
-    payRange: "Commission, KSh 300–800/day",
-    duration: "2–3 hrs/day",
+    provider: "Estate families & BnB hosts (demo listing)",
+    location: "Pipeline, Nairobi West, South C",
+    payRange: "KSh 800–1,500/day",
+    duration: "Day gigs, 2–5/week",
     description:
-      "Run WhatsApp catalogs and take orders for partner shops. Commission per confirmed order.",
-    tags: ["whatsapp", "sales", "customer-service", "mobile-money"],
+      "House cleaning, laundry and compound work for verified families and BnB hosts. Same-day M-Pesa pay after each gig.",
+    tags: ["cleaning", "laundry", "household", "customer-service", "swahili", "mobile-money"],
+  },
+  {
+    title: "House Help / Nanny — verified families",
+    type: "JOB",
+    provider: "Partner agencies, South B & Kilimani (demo listing)",
+    location: "South B, Kilimani, Lang'ata",
+    payRange: "KSh 8,000–15,000/mo",
+    duration: "Full-time, live-in or day",
+    description:
+      "Childcare, cooking and housekeeping with vetted employers. Reference checks done by the agency before placement.",
+    tags: ["childcare", "cooking", "household", "cleaning", "customer-service", "swahili"],
+  },
+  {
+    title: "Laundry & Ironing — home service",
+    type: "GIG",
+    provider: "Estate client network (demo listing)",
+    location: "Pipeline, Donholm, Umoja",
+    payRange: "KSh 300–700 per basket",
+    duration: "Flexible, pickup at 6pm",
+    description:
+      "Wash, dry and iron household laundry collected from estates. Weekly clients mean steady, repeatable income.",
+    tags: ["laundry", "cleaning", "household", "customer-service", "mobile-money"],
+  },
+  {
+    title: "Residential Plumber (fundi maji)",
+    type: "GIG",
+    provider: "Estate maintenance clusters (demo listing)",
+    location: "Donholm, Umoja, Buruburu",
+    payRange: "KSh 1,500–3,500/job",
+    duration: "On-call + weekly estates",
+    description:
+      "Leaking taps, unblocking drains, fitting sinks and cisterns across estate clusters. Your own basic toolkit required.",
+    tags: ["plumbing", "repair", "pipes", "maintenance", "construction", "swahili"],
+  },
+  {
+    title: "Certified Electrician (fundi stima)",
+    type: "GIG",
+    provider: "Licensed contractor, Roysambu (demo listing)",
+    location: "Roysambu, Kahawa West, CBD",
+    payRange: "KSh 2,000–5,000/job",
+    duration: "On-call + install days",
+    description:
+      "House wiring, socket and breaker fixes, security-light installs. EPA-registered contractor; safety gear provided.",
+    tags: ["electrical", "wiring", "repair", "maintenance", "construction", "safety"],
+  },
+  {
+    title: "Welder & Metal Fabricator",
+    type: "JOB",
+    provider: "Kamukunji jua kali cluster (demo listing)",
+    location: "Kamukunji, Baba Dogo",
+    payRange: "KSh 25,000–40,000/mo",
+    duration: "Full-time, workshop",
+    description:
+      "Gates, grills and window frames on order from hardware referrals. Own mask an advantage; materials supplied.",
+    tags: ["welding", "fabrication", "metalwork", "construction", "tools"],
+  },
+  {
+    title: "Carpenter — Furniture & Fittings (fundi seremala)",
+    type: "GIG",
+    provider: "Gikomba workshops (demo listing)",
+    location: "Gikomba, Kariobangi North",
+    payRange: "Per piece, KSh 500–3,000",
+    duration: "Workshop-based",
+    description:
+      "Beds, sofas frames and fitted cabinets against customer orders. Materials supplied; pay per completed piece.",
+    tags: ["carpentry", "woodworking", "furniture", "tools", "construction"],
+  },
+  {
+    title: "Mason — Block & Plaster (fundi wa kufu)",
+    type: "GIG",
+    provider: "Site foremen, Roysambu (demo listing)",
+    location: "Roysambu, Mwiki, Njiru",
+    payRange: "KSh 1,200–2,500/day",
+    duration: "Daily site work",
+    description:
+      "Block laying, plastering and screeding on residential sites. Steady 6-day weeks once a foreman knows you.",
+    tags: ["masonry", "plaster", "building", "construction"],
+  },
+  {
+    title: "Painter & Decorator",
+    type: "GIG",
+    provider: "Estate repaint contracts (demo listing)",
+    location: "South C, Lang'ata, Kilimani",
+    payRange: "KSh 1,500–3,000/day",
+    duration: "1–3 week contracts",
+    description:
+      "Interior and exterior repainting for move-out contracts. Two painters work as a pair; paint and scaffolds supplied.",
+    tags: ["painting", "decorating", "finishing", "construction"],
+  },
+  {
+    title: "Fridge & AC Repair Technician",
+    type: "GIG",
+    provider: "Appliance service network (demo listing)",
+    location: "CBD, Kasarani, Thika Road",
+    payRange: "KSh 1,000–3,000/call-out",
+    duration: "On-call + Saturday clinic",
+    description:
+      "Gas refills, thermostat and compressor swaps for homes and shops. Training provided for common fridge models.",
+    tags: ["refrigeration", "ac", "electrical", "repair", "appliances"],
+  },
+  {
+    title: "Car Mechanic — garage team",
+    type: "JOB",
+    provider: "Garage, Industrial Area (demo listing)",
+    location: "Industrial Area, Baba Dogo",
+    payRange: "KSh 15,000–30,000/mo",
+    duration: "Full-time",
+    description:
+      "Servicing, brake and suspension work on taxis and fleet cars. Experienced fundis welcome — certificates optional.",
+    tags: ["mechanic", "engines", "vehicles", "repair", "tools"],
   },
   {
     title: "M-Pesa Shop Attendant",
@@ -250,15 +380,48 @@ export const OPPORTUNITIES: OpportunitySeed[] = [
     tags: ["typing", "english", "data-entry"],
   },
   {
-    title: "Social Media Manager — local shops",
-    type: "MICROWORK",
-    provider: "Direct clients (demo listing)",
-    location: "Remote / client sites",
-    payRange: "KSh 4,000–8,000/mo per client",
-    duration: "Evenings",
+    title: "Phone Repair Technician",
+    type: "JOB",
+    provider: "Repair kiosks, CBD & Kasarani (demo listing)",
+    location: "CBD, Kasarani, Eastleigh",
+    payRange: "KSh 12,000–25,000/mo + commission",
+    duration: "Full-time, kiosk",
     description:
-      "Post 3x/week for a salon, butchery or hardware: photos, offers, WhatsApp replies. One phone, many shops.",
-    tags: ["social-media", "marketing", "design", "whatsapp", "sales"],
+      "Screen swaps, charging ports and software flashes at a busy kiosk. Apprentices trained on the job in 6 weeks.",
+    tags: ["repair", "electronics", "phones", "customer-service", "tools"],
+  },
+  {
+    title: "Tuk-tuk Driver — stage route",
+    type: "GIG",
+    provider: "Owner-operators, Dandora stage (demo listing)",
+    location: "Dandora, Komarock, Kayole",
+    payRange: "KSh 800–1,400/day after fuel",
+    duration: "Day or night shifts",
+    description:
+      "Drive a shared tuk-tuk on a fixed stage route. Clean record needed; weekly saving plan managed via M-Pesa.",
+    tags: ["driving", "transport", "customer-service", "mobile-money", "swahili"],
+  },
+  {
+    title: "Barber & Grooming — salon chair",
+    type: "GIG",
+    provider: "Salons, Umoja & Donholm (demo listing)",
+    location: "Umoja, Donholm, Tassia",
+    payRange: "Commission, KSh 600–1,500/day",
+    duration: "Tue–Sun, walk-ins",
+    description:
+      "Rent a chair in a partner salon — cuts, shaves and kids' lines. Own clippers preferred; bookings come via WhatsApp.",
+    tags: ["barber", "grooming", "customer-service", "sales", "mobile-money"],
+  },
+  {
+    title: "NITA Trade Test Prep — Plumbing / Electrical / Carpentry",
+    type: "COURSE",
+    provider: "NITA partner centre (demo partner feed)",
+    location: "Online theory + Nairobi workshop",
+    payRange: "Subsidised, KSh 500 registration",
+    duration: "8 weeks, part-time",
+    description:
+      "Prepare for the NITA Grade III–I trade test in your trade. Certified fundis are listed first on partner job feeds.",
+    tags: ["certification", "plumbing", "electrical", "carpentry", "masonry", "trade-test"],
   },
   {
     title: "School Uniform Micro-Contract",
@@ -326,8 +489,8 @@ export const FALLBACK_REPLIES: Record<ChatStage, Record<Lang, string>> = {
 
 export const SUGGESTIONS: Record<ChatStage, Record<Lang, string[]>> = {
   greet: {
-    en: ["I sell vegetables in the market", "I ride a boda", "I work in a shop", "I do tailoring"],
-    sw: ["Nauza mboga sokoni", "Napanda boda", "Nafanya kazi ya duka", "Nashona nguo"],
+    en: ["I sell vegetables in the market", "I ride a boda", "I do mama fua & cleaning", "I'm a fundi — plumber / electrician", "I do tailoring"],
+    sw: ["Nauza mboga sokoni", "Napanda boda", "Nafua na kusafisha nyumba", "Ni fundi wa maji / stima", "Nashona nguo"],
   },
   work: {
     en: ["Serving customers & pricing", "Driving & navigating the city", "Typing & keeping records", "Making & designing things"],
@@ -357,6 +520,10 @@ export const SIGNAL_RULES: { label: string; keywords: string[] }[] = [
   { label: "Sector: transport & delivery", keywords: ["boda", "delivery", "ride", "panda", "courier", "motorcycle"] },
   { label: "Sector: retail / POS", keywords: ["cashier", "shop", "duka", "supermarket", "till", "pos"] },
   { label: "Sector: tailoring & craft", keywords: ["tailor", "shona", "sewing", "fundi", "kitenge", "uniform"] },
+  { label: "Sector: cleaning & domestic (mama fua)", keywords: ["mama fua", "fua", "cleaning", "kusafisha", "laundry", "nyumba", "domestic", "nanny"] },
+  { label: "Sector: plumbing & water", keywords: ["plumber", "plumbing", "maji", "bomba", "pipes", "fundi maji", "leak"] },
+  { label: "Sector: electrical & wiring", keywords: ["electrician", "stima", "wiring", "umeme", "socket", "fundi stima"] },
+  { label: "Sector: construction & metalwork", keywords: ["mason", "carpenter", "seremala", "welder", "construction", "plaster", "mechanic", "garage"] },
   { label: "Skill signal: customer service", keywords: ["customer", "wateja", "serve", "huduma"] },
   { label: "Skill signal: mobile money", keywords: ["m-pesa", "mpesa", "pesa", "money", "float"] },
   { label: "Skill signal: WhatsApp commerce", keywords: ["whatsapp", "catalog", "order", "online"] },

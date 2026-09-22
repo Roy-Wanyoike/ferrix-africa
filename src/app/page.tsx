@@ -37,7 +37,7 @@ export default function Home() {
               <Waypoints className="h-4.5 w-4.5" />
             </span>
             <span className="text-base">
-              Ajira<span className="text-emerald-700">Copilot</span>
+              Ferrix<span className="text-emerald-700"> Africa</span>
             </span>
             <span className="hidden rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-800 sm:inline">
               AI prepares · People place
