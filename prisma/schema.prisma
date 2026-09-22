@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Candidate {
+  id              String    @id @default(cuid())
+  name            String?
+  phone           String?
+  language        String    @default("en")
+  persona         String?
+  personaLabel    String?
+  location        String?
+  status          String    @default("chatting") // chatting | assessed | mentor_requested | accepted | contacted | placed | resolved
+  skills          String? // JSON string[]
+  experience      String?
+  digitalLiteracy String?
+  availability    String?
+  goal            String?
+  constraints     String? // JSON string[]
+  aiSummary       String?
+  confidence      Float?
+  profile         String? // JSON full structured profile
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  messages        Message[]
+  matches         Match[]
+  cases           Case[]
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  role        String // user | assistant
+  content     String
+  createdAt   DateTime  @default(now())
+}
+
+model Opportunity {
+  id          String  @id @default(cuid())
+  title       String
+  type        String // COURSE | GIG | JOB | MICROWORK
+  provider    String
+  location    String
+  payRange    String
+  duration    String?
+  description String
+  tags        String // JSON string[]
+  actionUrl   String?
+  active      Boolean @default(true)
+  matches     Match[]
+}
+
+model Match {
+  id            String      @id @default(cuid())
+  candidateId   String
+  candidate     Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  opportunityId String
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  score         Float
+  reasons       String // JSON string[]
+  createdAt     DateTime    @default(now())
+}
+
+model Case {
+  id          String      @id @default(cuid())
+  ref         String      @unique
+  candidateId String
+  candidate   Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  priority    String      @default("normal") // high | normal | low
+  status      String      @default("new") // new | accepted | contacted | placed | resolved
+  request     String? // what the candidate asked for
+  note        String?
+  assignedTo  String?
+  events      CaseEvent[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model CaseEvent {
+  id        String   @id @default(cuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  actor     String // AI | Coordinator | System
+  action    String // structured | assigned | accepted | contacted | placed | resolved | note | mentor_requested
+  detail    String?
+  createdAt DateTime @default(now())
+}
