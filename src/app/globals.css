@@ -119,4 +119,11 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* FE-06: clear, high-contrast keyboard focus on all interactive elements
+     (emerald-700; coexists with shadcn Button's focus ring). */
+  :focus-visible {
+    outline: 2px solid #047857;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }

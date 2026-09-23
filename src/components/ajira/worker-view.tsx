@@ -28,7 +28,7 @@ import {
 
 interface Props {
   lang: Lang;
-  onHandoff: () => void;
+  onHandoff: (caseRef: string) => void;
 }
 
 const isSwahili = (text: string) =>
@@ -76,7 +76,7 @@ export default function WorkerView({ lang, onHandoff }: Props) {
     if (userMsgs.length === 0) return [];
     const out: string[] = [];
     const joined = userMsgs.map((m) => m.content).join(" ");
-    out.push(`Language detected: ${isSwahili(joined) ? "Kiswahili" : "English"}`);
+    out.push(`${t("signals.language", lang)}: ${isSwahili(joined) ? "Kiswahili" : "English"}`);
     for (const rule of SIGNAL_RULES) {
       if (rule.keywords.some((k) => joined.toLowerCase().includes(k))) {
         out.push(rule.label);
@@ -96,6 +96,7 @@ export default function WorkerView({ lang, onHandoff }: Props) {
   };
 
   const start = async (p: Persona | null, text: string) => {
+    if (sending) return; // FE-12: same double-submit guard as send()
     setPersona(p);
     setSending(true);
     try {
@@ -105,7 +106,7 @@ export default function WorkerView({ lang, onHandoff }: Props) {
       setStage(data.stage);
       setMode(data.mode === "live" ? "live" : "fallback");
     } catch {
-      toast({ title: "Network hiccup", description: "The demo could not reach the AI — try again." });
+      toast({ title: t("toast.network.title", lang), description: t("toast.network.body", lang) });
     } finally {
       setSending(false);
     }
@@ -117,7 +118,8 @@ export default function WorkerView({ lang, onHandoff }: Props) {
     setInput("");
     if (!candidateId) return start(persona, clean);
 
-    setMessages((m) => [...m, { id: `tmp-${Date.now()}`, role: "user", content: clean }]);
+    const tmpId = `tmp-${Date.now()}`;
+    setMessages((m) => [...m, { id: tmpId, role: "user", content: clean }]);
     setSending(true);
     try {
       const data = await post({ candidateId, message: clean, language: lang });
@@ -129,7 +131,9 @@ export default function WorkerView({ lang, onHandoff }: Props) {
         if (last?.role === "assistant") speak(last.content);
       }
     } catch {
-      toast({ title: "Network hiccup", description: "Message not delivered — try again." });
+      setMessages((m) => m.filter((msg) => msg.id !== tmpId)); // FE-12: roll back optimistic bubble
+      setInput(clean);
+      toast({ title: t("toast.send.title", lang), description: t("toast.send.body", lang) });
     } finally {
       setSending(false);
     }
@@ -158,11 +162,11 @@ export default function WorkerView({ lang, onHandoff }: Props) {
       if (data.error) throw new Error(data.error);
       setResult(data);
       toast({
-        title: `Case ${data.case.ref} created`,
-        description: "AI profile structured — now awaiting human verification.",
+        title: `${t("toast.case.created", lang)}: ${data.case.ref}`,
+        description: t("toast.case.body", lang),
       });
     } catch {
-      toast({ title: "Analysis failed", description: "Please try again." });
+      toast({ title: t("toast.analyze.title", lang), description: t("toast.analyze.body", lang) });
     } finally {
       setAnalyzing(false);
     }
@@ -212,22 +216,22 @@ export default function WorkerView({ lang, onHandoff }: Props) {
         </div>
         <button
           onClick={restart}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs font-semibold text-stone-600 hover:border-emerald-500 hover:text-emerald-700"
+          className="ml-auto inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-2 text-xs font-semibold text-stone-600 hover:border-emerald-500 hover:text-emerald-700 sm:min-h-[36px] sm:py-1.5"
         >
-          <RefreshCcw className="h-3.5 w-3.5" /> Restart demo
+          <RefreshCcw className="h-3.5 w-3.5" /> {t("worker.restart", lang)}
         </button>
       </div>
 
       {/* persona chooser */}
       {!candidateId && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wide text-stone-400">Start as:</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-stone-500">{t("worker.startAs", lang)}</span>
           {PERSONAS.map((p) => (
             <button
               key={p.key}
               onClick={() => start(p, p.quickStart)}
               disabled={sending}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-transform hover:scale-[1.03] disabled:opacity-50 ${p.chipColor}`}
+              className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-transform hover:scale-[1.03] disabled:opacity-50 ${p.chipColor}`}
             >
               <span aria-hidden>{p.emoji}</span>
               {lang === "sw" ? p.labelSw : p.label}
@@ -251,7 +255,7 @@ export default function WorkerView({ lang, onHandoff }: Props) {
                   Ferrix{persona ? ` · ${persona.name}` : ""}
                 </div>
                 <div className="text-[10px] opacity-80">
-                  {listening ? t("voice.listening", lang) : "AI · online"}
+                  {listening ? t("voice.listening", lang) : t("chat.online", lang)}
                 </div>
               </div>
               <Phone className="h-4 w-4 opacity-80" />
@@ -260,8 +264,9 @@ export default function WorkerView({ lang, onHandoff }: Props) {
 
             {/* encrypted chip */}
             <div className="bg-[#ECE5DD] pt-2">
-              <div className="mx-auto w-fit rounded bg-[#FFECD2] px-2.5 py-1 text-[9px] text-stone-600">
-                🔒 Demo conversation — messages stay on this device
+              <div className="mx-auto flex w-fit items-center gap-1 rounded bg-[#FFECD2] px-2.5 py-1 text-[9px] text-stone-600">
+                <span aria-hidden="true">🔒</span>
+                {t("chat.demoNotice", lang)}
               </div>
             </div>
 
@@ -269,9 +274,9 @@ export default function WorkerView({ lang, onHandoff }: Props) {
             <div ref={scrollRef} className="h-[400px] space-y-2 overflow-y-auto px-3 py-2 sm:h-[440px]">
               {messages.length === 0 && !sending && (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-                  <Sparkles className="h-7 w-7 text-stone-400" />
+                  <Sparkles className="h-7 w-7 text-stone-500" />
                   <p className="max-w-[220px] text-xs text-stone-500">
-                    Pick a persona above, or just start typing — the copilot mirrors your language.
+                    {t("chat.empty", lang)}
                   </p>
                 </div>
               )}
@@ -290,17 +295,17 @@ export default function WorkerView({ lang, onHandoff }: Props) {
                     }`}
                   >
                     <span className="whitespace-pre-wrap">{m.content}</span>
-                    <div className="mt-0.5 flex items-center justify-end gap-1 text-[8px] text-stone-400">
+                    <div className="mt-0.5 flex items-center justify-end gap-1 text-[8px] text-stone-600">
                       {m.role === "assistant" && (
                         <button
                           onClick={() => speak(m.content)}
-                          aria-label="Listen"
-                          className="rounded p-0.5 hover:bg-stone-100"
+                          aria-label={t("a11y.listen", lang)}
+                          className="relative -my-2.5 -ml-1.5 rounded p-2 text-stone-500 hover:bg-stone-100 after:absolute after:-inset-2 after:content-['']"
                         >
-                          <Volume2 className="h-3 w-3" />
+                          <Volume2 className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      now
+                      {t("chat.now", lang)}
                     </div>
                   </div>
                 </motion.div>
@@ -329,7 +334,7 @@ export default function WorkerView({ lang, onHandoff }: Props) {
                   <button
                     key={s}
                     onClick={() => send(s)}
-                    className="rounded-full border border-emerald-600/40 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50"
+                    className="inline-flex min-h-[44px] items-center rounded-full border border-emerald-600/40 bg-white px-3 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50"
                   >
                     {s}
                   </button>
@@ -343,7 +348,7 @@ export default function WorkerView({ lang, onHandoff }: Props) {
                 <button
                   onClick={analyze}
                   disabled={analyzing}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-black text-stone-950 hover:bg-amber-300 disabled:opacity-60"
+                  className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-black text-stone-950 hover:bg-amber-300 disabled:opacity-60"
                 >
                   {analyzing ? (
                     <>
@@ -362,8 +367,8 @@ export default function WorkerView({ lang, onHandoff }: Props) {
             <div className="flex items-center gap-2 bg-[#F0F0F0] px-2.5 py-2">
               <button
                 onClick={mic}
-                aria-label="Voice input"
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
+                aria-label={t("a11y.voice", lang)}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${
                   listening ? "bg-rose-500 text-white animate-pulse" : "bg-stone-200 text-stone-600 hover:bg-stone-300"
                 }`}
               >
@@ -374,13 +379,14 @@ export default function WorkerView({ lang, onHandoff }: Props) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send(input)}
                 placeholder={t("chat.placeholder", lang)}
-                className="h-9 min-w-0 flex-1 rounded-full bg-white px-3.5 text-[13px] outline-none placeholder:text-stone-400"
+                aria-label={t("chat.placeholder", lang)}
+                className="h-9 min-w-0 flex-1 rounded-full bg-white px-3.5 text-[13px] outline-none placeholder:text-stone-500"
               />
               <button
                 onClick={() => send(input)}
                 disabled={sending || !input.trim()}
-                aria-label="Send"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-40"
+                aria-label={t("a11y.send", lang)}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white hover:bg-emerald-600 disabled:opacity-40"
               >
                 <Send className="h-4 w-4" />
               </button>
@@ -388,14 +394,14 @@ export default function WorkerView({ lang, onHandoff }: Props) {
           </div>
 
           {/* auto-speak toggle */}
-          <label className="mx-auto mt-3 flex w-fit cursor-pointer items-center gap-2 text-xs font-semibold text-stone-500">
+          <label className="mx-auto mt-3 flex min-h-[44px] w-fit cursor-pointer items-center gap-2 text-xs font-semibold text-stone-500">
             <input
               type="checkbox"
               checked={autoSpeak}
               onChange={(e) => setAutoSpeak(e.target.checked)}
               className="h-3.5 w-3.5 accent-emerald-600"
             />
-            Auto-read AI replies (voice accessibility)
+            {t("chat.autoRead", lang)}
           </label>
         </div>
 
@@ -413,7 +419,11 @@ export default function WorkerView({ lang, onHandoff }: Props) {
           {result && <MatchList matches={result.matches} lang={lang} />}
           {result && candidateId && <AssetPanel candidateId={candidateId} lang={lang} />}
           {result && (
-            <HandoffPanel caseRef={result.case.ref} lang={lang} onOpenCoordinator={onHandoff} />
+            <HandoffPanel
+              caseRef={result.case.ref}
+              lang={lang}
+              onOpenCoordinator={() => onHandoff(result.case.ref)}
+            />
           )}
         </div>
       </div>

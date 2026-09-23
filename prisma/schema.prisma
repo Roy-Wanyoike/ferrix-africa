@@ -50,6 +50,8 @@ model TrackRecordEntry {
   verifiedBy  String?
   occurredAt  DateTime  @default(now())
   createdAt   DateTime  @default(now())
+
+  @@index([candidateId])
 }
 
 model Message {
@@ -59,6 +61,8 @@ model Message {
   role        String // user | assistant
   content     String
   createdAt   DateTime  @default(now())
+
+  @@index([candidateId])
 }
 
 model Opportunity {
@@ -85,6 +89,8 @@ model Match {
   score         Float
   reasons       String // JSON string[]
   createdAt     DateTime    @default(now())
+
+  @@index([candidateId])
 }
 
 model Case {
@@ -100,6 +106,8 @@ model Case {
   events      CaseEvent[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+
+  @@index([candidateId])
 }
 
 model CaseEvent {
@@ -110,4 +118,6 @@ model CaseEvent {
   action    String // structured | assigned | accepted | contacted | placed | resolved | note | mentor_requested
   detail    String?
   createdAt DateTime @default(now())
+
+  @@index([caseId])
 }

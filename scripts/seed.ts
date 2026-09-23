@@ -1,6 +1,6 @@
 // Seed the demo dataset: opportunities + a lively case queue + track records.
 // Run: bun run scripts/seed.ts
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { OPPORTUNITIES } from "../src/lib/data";
 
 const db = new PrismaClient();
@@ -8,6 +8,16 @@ const db = new PrismaClient();
 async function main() {
   console.log("Seeding…");
 
+  // BE-15: the whole wipe+create seed runs atomically — a mid-run failure now
+  // rolls back instead of leaving a half-empty demo database.
+  await db.$transaction(
+    (tx) => seedAll(tx),
+    { timeout: 30_000, maxWait: 10_000 }
+  );
+}
+
+// All writes run inside the caller's transaction; `db` here is the tx client.
+async function seedAll(db: Prisma.TransactionClient) {
   // Wipe demo state (idempotent reseed)
   await db.trackRecordEntry.deleteMany();
   await db.caseEvent.deleteMany();
@@ -416,7 +426,7 @@ async function main() {
     },
   });
 
-  const counts = await db.$transaction([
+  const counts = await Promise.all([
     db.opportunity.count(),
     db.candidate.count(),
     db.case.count(),

@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -53,6 +54,7 @@ server.log
 # Skills directory
 /skills/
 # sandbox / local-only (never publish)
+/tool-results/
 /upload
 /download
 /worklog.md

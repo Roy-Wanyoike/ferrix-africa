@@ -462,8 +462,8 @@ export const OPPORTUNITIES: OpportunitySeed[] = [
 
 export const FALLBACK_REPLIES: Record<ChatStage, Record<Lang, string>> = {
   greet: {
-    en: "Asante! I hear you — that work takes real hustle. Tell me, what are you best at in your work? Even small things count.",
-    sw: "Asante! Nimekusikia — kazi yako ni juhudi za kweli. Sasa niambie, unashinda wapi kwenye kazi yako? Hata vitu vidogo vina hesabu.",
+    en: "Thank you! I hear you — that work takes real hustle. Tell me, what are you best at in your work? Even small things count.",
+    sw: "Asante! Nimekusikia — kazi yako ni juhudi za kweli. Sasa niambie, unashinda wapi kwenye kazi yako? Hata vitu vidogo vinahesabu.",
   },
   work: {
     en: "That's a strong skill set — many people underrate it. Now, how do you use your phone? WhatsApp, M-Pesa, anything else?",
@@ -471,11 +471,11 @@ export const FALLBACK_REPLIES: Record<ChatStage, Record<Lang, string>> = {
   },
   digital: {
     en: "Good — your phone can already carry part of your next step. What do you want next: more income, online work, or growing your business?",
-    sw: "Nzuri — simu yako inaweza kubeba hatua yako ijayo. Unataka nini mtandaoni: kipato zaidi, kazi ya online, au kuongeza biashara?",
+    sw: "Nzuri — simu yako inaweza kubeba hatua yako ijayo. Unataka nini kifuatacho: kipato zaidi, kazi ya online, au kuongeza biashara?",
   },
   goal: {
     en: "Clear goal — I like it. Last one: what makes this hard right now? Data cost, time, confidence, or not knowing where to start?",
-    sw: "Lengo lisilo na shaka — napenda. Swali la mwisho: nini linagumu sasa? Bei ya data, muda, uhakika, au kutojuauanza wapi?",
+    sw: "Lengo lisilo na shaka — napenda. Swali la mwisho: nini linagumu sasa? Bei ya data, muda, uhakika, au kutojua kuanza wapi?",
   },
   limits: {
     en: "Thank you for being honest — that's exactly what we plan around. I have enough to build your profile and match you with real opportunities.",
@@ -494,7 +494,7 @@ export const SUGGESTIONS: Record<ChatStage, Record<Lang, string[]>> = {
   },
   work: {
     en: ["Serving customers & pricing", "Driving & navigating the city", "Typing & keeping records", "Making & designing things"],
-    sw: ["Kuhudumia wateja & bei", " kuendesha & njia za jiji", "Kuandika & kumbukumbu", "Kutengeneza vitu"],
+    sw: ["Kuhudumia wateja & bei", "Kuendesha & kutambaa jiji", "Kuandika & kumbukumbu", "Kutengeneza vitu"],
   },
   digital: {
     en: ["WhatsApp & M-Pesa only", "Comfortable with many apps", "Basic phone only", "I learn fast"],

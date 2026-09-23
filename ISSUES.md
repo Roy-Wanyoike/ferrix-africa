@@ -4,6 +4,16 @@
 > Status legend: OPEN → IN_PROGRESS → FIXED (with PR/commit ref) → VERIFIED (QA).
 > Deviation note: GitHub Issues API unavailable (no `gh` CLI in sandbox) — this file is the tracked issue registry.
 
+## RESOLUTION STATUS (post-fix, QA-verified 2026-09-23)
+
+- **FIXED + QA-VERIFIED: 50** — all P0s and all P1s. Browser E2E: 11/11 PASS (QA task 4-a). API regression: 38/38 probes PASS (QA task 4-b). Static gates: `bun run lint` exit 0 (5 pre-existing warnings), `npx tsc --noEmit` exit 0.
+  - BE-01…BE-19 (all) · FE-01…FE-15 (all) · PRD-01…PRD-08 (all) · SEC-02/03/04/05 · HYG-01/02/03 · CONFIG-01/02/03
+- **DEFERRED (documented tradeoffs, open post-demo): 3**
+  - SEC-01 full authentication — coordinator OTP per roadmap; demo-mode open by design (README security note added).
+  - HYG-05 dependency prune (~24 unused deps) — `bun remove` deferred until after demo window to avoid touching the running server's node_modules.
+  - HYG-04 Caddyfile — kept intentionally: required by the sandbox preview gateway; removing breaks preview.
+- **ACTIVATES ON NEXT RESTART:** BE-14/SEC-05 Prisma query-log gate (code in place; running server holds pre-fix client singleton — restart forbidden by protocol).
+
 ## P0 — Demo/investor-path breakers
 
 | ID | Area | Problem | Evidence | Fix |

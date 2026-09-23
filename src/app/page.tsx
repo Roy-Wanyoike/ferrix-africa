@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Languages, Waypoints } from "lucide-react";
 import Landing from "@/components/ajira/landing";
 import WorkerView from "@/components/ajira/worker-view";
@@ -13,6 +13,11 @@ export default function Home() {
   const [view, setView] = useState<View>("landing");
   const [lang, setLang] = useState<Lang>("en");
   const [focusRef, setFocusRef] = useState<string | null>(null);
+
+  // FE-03: keep <html lang> in sync so screen readers pronounce the right language.
+  useEffect(() => {
+    document.documentElement.lang = lang === "sw" ? "sw" : "en";
+  }, [lang]);
 
   const goWorker = () => {
     setFocusRef(null);
@@ -40,7 +45,7 @@ export default function Home() {
               Ferrix<span className="text-emerald-700"> Africa</span>
             </span>
             <span className="hidden rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-800 sm:inline">
-              AI prepares · People place
+              {t("header.tagline", lang)}
             </span>
           </button>
 
@@ -55,15 +60,15 @@ export default function Home() {
               <button
                 key={v}
                 onClick={() => (v === "worker" ? goWorker() : v === "coordinator" ? goCoordinator() : setView("landing"))}
-                className={`whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11px] font-bold transition-colors sm:px-3 sm:text-xs ${
+                className={`flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-full px-2.5 py-2 text-[11px] font-bold transition-colors sm:min-h-[36px] sm:px-3 sm:py-1.5 sm:text-xs ${
                   view === v
                     ? "bg-stone-900 text-white"
                     : "text-stone-600 hover:bg-stone-100"
-                } ${v === "landing" ? "hidden sm:block" : ""}`}
+                } ${v === "landing" ? "hidden sm:flex" : ""}`}
               >
                 {v === "worker" ? (
                   <>
-                    <span className="sm:hidden">Worker</span>
+                    <span className="sm:hidden">{t("nav.workerShort", lang)}</span>
                     <span className="hidden sm:inline">{label}</span>
                   </>
                 ) : (
@@ -73,7 +78,7 @@ export default function Home() {
             ))}
             <button
               onClick={() => setLang(lang === "en" ? "sw" : "en")}
-              className="ml-0.5 inline-flex items-center gap-1 rounded-full border border-emerald-600 px-2 py-1.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 sm:ml-1 sm:px-3 sm:text-xs"
+              className="ml-0.5 inline-flex min-h-[44px] items-center gap-1 rounded-full border border-emerald-600 px-2 py-2 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 sm:ml-1 sm:min-h-[36px] sm:px-3 sm:py-1.5 sm:text-xs"
             >
               <Languages className="h-3.5 w-3.5" />
               <span className="sm:hidden">{lang === "en" ? "SW" : "EN"}</span>
@@ -91,7 +96,8 @@ export default function Home() {
         {view === "worker" && (
           <WorkerView
             lang={lang}
-            onHandoff={() => {
+            onHandoff={(caseRef) => {
+              setFocusRef(caseRef);
               setView("coordinator");
             }}
           />

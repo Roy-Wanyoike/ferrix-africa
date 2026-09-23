@@ -41,7 +41,7 @@ export function SignalsPanel({
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-bold text-stone-800">
           <ScanSearch className="h-4 w-4 text-emerald-600" />
-          {t("signals.title", lang)}
+          <h2>{t("signals.title", lang)}</h2>
           <span
             className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
               mode === "live"
@@ -60,7 +60,7 @@ export function SignalsPanel({
                 <Cpu className="h-3 w-3" /> {t("chat.mode.fallback", lang)}
               </>
             ) : (
-              "standby"
+              t("chat.mode.standby", lang)
             )}
           </span>
         </CardTitle>
@@ -68,7 +68,7 @@ export function SignalsPanel({
       </CardHeader>
       <CardContent>
         {signals.length === 0 ? (
-          <p className="text-xs italic text-stone-400">{t("signals.empty", lang)}</p>
+          <p className="text-xs italic text-stone-500">{t("signals.empty", lang)}</p>
         ) : (
           <ul className="space-y-1.5">
             {signals.map((s, i) => (
@@ -98,7 +98,7 @@ export function ProfileCard({ profile, lang }: { profile: StructuredProfile; lan
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold text-stone-800">
             <Bot className="h-4 w-4 text-emerald-600" />
-            {t("profile.title", lang)}
+            <h2>{t("profile.title", lang)}</h2>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -116,7 +116,7 @@ export function ProfileCard({ profile, lang }: { profile: StructuredProfile; lan
           </div>
 
           <div>
-            <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-stone-400">
+            <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-stone-500">
               {t("case.skills", lang)}
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -129,10 +129,10 @@ export function ProfileCard({ profile, lang }: { profile: StructuredProfile; lan
           </div>
 
           <dl className="space-y-1.5 text-xs text-stone-600">
-            <div className="flex gap-2"><span className="w-28 shrink-0 font-semibold text-stone-500">Experience</span><span>{profile.experience}</span></div>
-            <div className="flex gap-2"><span className="w-28 shrink-0 font-semibold text-stone-500">Digital</span><span>{profile.digitalLiteracy}</span></div>
-            <div className="flex gap-2"><span className="w-28 shrink-0 font-semibold text-stone-500">Availability</span><span>{profile.availability}</span></div>
-            <div className="flex gap-2"><span className="w-28 shrink-0 font-semibold text-stone-500">Goal</span><span>{profile.goal}</span></div>
+            <div className="flex gap-2"><span className="w-28 shrink-0 font-semibold text-stone-500">{t("profile.experience", lang)}</span><span>{profile.experience}</span></div>
+            <div className="flex gap-2"><span className="w-28 shrink-0 font-semibold text-stone-500">{t("profile.digital", lang)}</span><span>{profile.digitalLiteracy}</span></div>
+            <div className="flex gap-2"><span className="w-28 shrink-0 font-semibold text-stone-500">{t("profile.availability", lang)}</span><span>{profile.availability}</span></div>
+            <div className="flex gap-2"><span className="w-28 shrink-0 font-semibold text-stone-500">{t("profile.goal", lang)}</span><span>{profile.goal}</span></div>
           </dl>
 
           {profile.verificationFlags.length > 0 && (
@@ -168,9 +168,9 @@ export function MatchList({ matches, lang }: { matches: ScoredMatch[]; lang: Lan
     <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
       <div className="flex items-center gap-2 px-1">
         <Wallet className="h-4 w-4 text-emerald-600" />
-        <h3 className="text-sm font-bold text-stone-800">{t("matches.title", lang)}</h3>
-        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-          AI recommends · human places
+        <h2 className="text-sm font-bold text-stone-800">{t("matches.title", lang)}</h2>
+        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+          {t("matches.note", lang)}
         </span>
       </div>
       {matches.map((m, i) => (
@@ -188,21 +188,21 @@ export function MatchList({ matches, lang }: { matches: ScoredMatch[]; lang: Lan
                     <Badge variant="outline" className={`text-[10px] font-bold ${typeColors[m.opportunity.type] ?? ""}`}>
                       {m.opportunity.type}
                     </Badge>
-                    <h4 className="text-sm font-bold text-stone-900">{m.opportunity.title}</h4>
+                    <h3 className="text-sm font-bold text-stone-900">{m.opportunity.title}</h3>
                   </div>
                   <div className="mt-1 text-xs text-stone-500">
                     {m.opportunity.provider} · <MapPin className="inline h-3 w-3" /> {m.opportunity.location}
                   </div>
                 </div>
-                <div className="shrink-0 rounded-xl bg-emerald-600 px-2.5 py-1.5 text-center text-white">
+                <div className="shrink-0 rounded-xl bg-emerald-700 px-2.5 py-1.5 text-center text-white">
                   <div className="text-sm font-black leading-none">{Math.round(m.score * 100)}%</div>
-                  <div className="text-[9px] uppercase tracking-wide opacity-80">match</div>
+                  <div className="text-[9px] uppercase tracking-wide text-white/90">{t("match.label", lang)}</div>
                 </div>
               </div>
 
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-stone-700">
-                <span>💰 {m.opportunity.payRange}</span>
-                {m.opportunity.duration && <span>⏱ {m.opportunity.duration}</span>}
+                <span><span aria-hidden="true">💰</span> {m.opportunity.payRange}</span>
+                {m.opportunity.duration && <span><span aria-hidden="true">⏱</span> {m.opportunity.duration}</span>}
               </div>
 
               <p className="mt-2 text-xs leading-relaxed text-stone-600">{m.opportunity.description}</p>
@@ -213,7 +213,7 @@ export function MatchList({ matches, lang }: { matches: ScoredMatch[]; lang: Lan
                 </div>
                 <ul className="mt-1 space-y-0.5">
                   {m.reasons.map((r) => (
-                    <li key={r} className="text-xs text-emerald-900">✓ {r}</li>
+                    <li key={r} className="text-xs text-emerald-900"><span aria-hidden="true">✓</span> {r}</li>
                   ))}
                 </ul>
               </div>
@@ -266,32 +266,40 @@ export function TrackRecordPanel({
   const [entries, setEntries] = useState<TrackEntry[] | null>(null);
   const [summary, setSummary] = useState<TrackSummary | null>(null);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let live = true;
     fetch(`/api/track-record?candidateId=${candidateId}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("track-record request failed");
+        return r.json();
+      })
       .then((d) => {
         if (!live) return;
         setEntries(d.entries ?? []);
         setSummary(d.summary ?? null);
+        setError(false);
       })
       .catch(() => {
-        if (live) setEntries([]);
+        if (!live) return;
+        setEntries(null);
+        setError(true); // FE-11: surface failure instead of a silent empty state
       });
     return () => {
       live = false;
     };
-  }, [candidateId]);
+  }, [candidateId, retryKey]);
 
   const shareText = () => {
     const lines = [
-      `${workerName || "Worker"} — verified track record (Ferrix work passport)`,
+      `${workerName || t("case.worker", lang)} — ${t("track.shareTitle", lang)}`,
       ...(
         entries ?? []
       ).map(
         (e) =>
-          `• ${e.kind} — ${e.title}${e.org ? ` @ ${e.org}` : ""}${e.rating ? ` (${e.rating}★)` : ""} — verified by ${e.verifiedBy ?? "coordinator"}`
+          `• ${kindLabel(e.kind)} — ${e.title}${e.org ? ` @ ${e.org}` : ""}${e.rating ? ` (${e.rating}★)` : ""} — ${t("track.verifiedBy", lang)} ${e.verifiedBy ?? t("nav.coordinator", lang)}`
       ),
     ];
     return lines.join("\n");
@@ -332,14 +340,14 @@ export function TrackRecordPanel({
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold text-stone-800">
             <ShieldCheck className="h-4 w-4 text-emerald-700" />
-            {t("track.title", lang)}
+            <h2>{t("track.title", lang)}</h2>
           </CardTitle>
           <p className="text-xs text-stone-500">{t("track.sub", lang)}</p>
         </CardHeader>
         <CardContent className="space-y-3">
           {summary && summary.verifiedCount > 0 && (
             <div className="flex flex-wrap gap-2">
-              <Badge className="border border-emerald-200 bg-emerald-600 text-white">
+              <Badge className="border border-emerald-200 bg-emerald-700 text-white">
                 <Briefcase className="mr-1 h-3 w-3" /> {summary.placements} {t("track.placements", lang)}
               </Badge>
               {summary.trainings > 0 && (
@@ -355,8 +363,21 @@ export function TrackRecordPanel({
             </div>
           )}
 
-          {!entries ? (
-            <div className="flex items-center gap-2 text-xs text-stone-400">
+          {error && !entries ? (
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-red-700">
+              <span>{t("errors.loadFailed", lang)}</span>
+              <button
+                onClick={() => {
+                  setError(false);
+                  setRetryKey((k) => k + 1);
+                }}
+                className="inline-flex min-h-[36px] items-center rounded-full border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+              >
+                {t("errors.retryBtn", lang)}
+              </button>
+            </div>
+          ) : !entries ? (
+            <div className="flex items-center gap-2 text-xs text-stone-500">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("common.loading", lang)}
             </div>
           ) : entries.length === 0 ? (
@@ -371,11 +392,11 @@ export function TrackRecordPanel({
                     </Badge>
                     <span className="text-xs font-bold text-stone-800">{e.title}</span>
                     {e.rating != null && (
-                      <span className="text-[10px] font-bold text-amber-600">{"★".repeat(e.rating)}</span>
+                      <span className="text-[10px] font-bold text-amber-700">{"★".repeat(e.rating)}</span>
                     )}
                   </div>
                   {e.detail && <p className="text-xs leading-relaxed text-stone-600">{e.detail}</p>}
-                  <div className="text-[10px] text-stone-400">
+                  <div className="text-[10px] text-stone-600">
                     {e.org ? `${e.org} · ` : ""}{fmtDate(e.occurredAt)}
                     {e.verified && e.verifiedBy && (
                       <span className="font-semibold text-emerald-700"> · {t("track.verifiedBy", lang)} {e.verifiedBy}</span>
@@ -392,7 +413,7 @@ export function TrackRecordPanel({
               {copied ? t("asset.copied", lang) : t("track.share", lang)}
             </Button>
           )}
-          <p className="text-[10px] leading-relaxed text-stone-400">{t("track.autoNote", lang)}</p>
+          <p className="text-[10px] leading-relaxed text-stone-600">{t("track.autoNote", lang)}</p>
         </CardContent>
       </Card>
     </motion.div>
@@ -411,19 +432,23 @@ export function AssetPanel({
   const [text, setText] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState(false);
 
   const generate = async () => {
     setLoading(true);
+    setError(false);
     try {
       const res = await fetch("/api/asset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidateId, kind: "catalog" }),
       });
+      if (!res.ok) throw new Error("asset request failed");
       const data = await res.json();
       setText(data.text ?? null);
     } catch {
       setText(null);
+      setError(true); // FE-11: surface failure instead of a silent empty state
     } finally {
       setLoading(false);
     }
@@ -446,11 +471,23 @@ export function AssetPanel({
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold text-stone-800">
             <FileText className="h-4 w-4 text-amber-600" />
-            {t("asset.title", lang)} — {t("asset.catalog", lang)}
+            <h2>
+              {t("asset.title", lang)} — {t("asset.catalog", lang)}
+            </h2>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {!text ? (
+          {error && !text ? (
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-red-700">
+              <span>{t("errors.loadFailed", lang)}</span>
+              <button
+                onClick={generate}
+                className="inline-flex min-h-[36px] items-center rounded-full border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+              >
+                {t("errors.retryBtn", lang)}
+              </button>
+            </div>
+          ) : !text ? (
             <Button
               onClick={generate}
               disabled={loading}
@@ -500,17 +537,17 @@ export function HandoffPanel({
     >
       <div className="flex items-center gap-2 text-emerald-400">
         <Handshake className="h-5 w-5" />
-        <span className="text-sm font-bold uppercase tracking-wide">{t("handoff.title", lang)}</span>
+        <h2 className="text-sm font-bold uppercase tracking-wide">{t("handoff.title", lang)}</h2>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-stone-300">{t("handoff.body", lang)}</p>
       <div className="mt-3 flex items-center gap-2 rounded-xl bg-stone-900 px-3 py-2">
         <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
         <span className="font-mono text-sm font-bold text-amber-300">{caseRef}</span>
-        <span className="text-xs text-stone-400">— new · awaiting assignment</span>
+        <span className="text-xs text-stone-400">{t("handoff.status", lang)}</span>
       </div>
       <button
         onClick={onOpenCoordinator}
-        className="mt-3 w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-stone-950 transition-colors hover:bg-emerald-400"
+        className="mt-3 min-h-[44px] w-full rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-600"
       >
         {t("nav.coordinator", lang)} →
       </button>

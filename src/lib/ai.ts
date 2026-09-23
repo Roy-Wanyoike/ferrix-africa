@@ -6,15 +6,25 @@ export const llmChat = async (
   messages: { role: "user" | "assistant"; content: string }[],
   timeoutMs = 9000
 ): Promise<string | null> => {
+  // BE-18: abort on timeout and always clear the timer. The SDK's fetch call
+  // does NOT accept/forward an AbortSignal (verified in z-ai-web-dev-sdk
+  // dist/index.js — only method/headers/body are passed), so the signal is
+  // used on our racing timeout promise instead of the SDK call itself.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const zai = await ZAI.create();
     const completion = (await Promise.race([
-      zai.chat.completions.create({
-        messages,
-        thinking: { type: "disabled" },
-      }),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
-    ])) as Awaited<ReturnType<typeof zai.chat.completions.create>> | null;
+      (async () => {
+        const zai = await ZAI.create();
+        return zai.chat.completions.create({
+          messages,
+          thinking: { type: "disabled" },
+        });
+      })(),
+      new Promise<null>((resolve) =>
+        controller.signal.addEventListener("abort", () => resolve(null), { once: true })
+      ),
+    ])) as { choices?: { message?: { content?: string } }[] } | null;
 
     const content = completion?.choices?.[0]?.message?.content;
     if (!content || !content.trim()) return null;
@@ -22,8 +32,15 @@ export const llmChat = async (
   } catch (err) {
     console.error("[ai] llmChat failed:", err);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 };
+
+// SEC-04: delimit untrusted user text inside LLM prompts (cheap
+// prompt-injection hygiene — the model is told markers are data, not commands).
+export const untrustedBlock = (text: string): string =>
+  `--- USER MESSAGE (untrusted) ---\n${text}\n--- END ---`;
 
 // Extract the first JSON object from a model response.
 export const extractJson = <T,>(raw: string | null): T | null => {

@@ -99,6 +99,7 @@ export default function Landing({ lang, onStartWorker, onStartCoordinator }: Pro
       {/* ---------- THEMES ---------- */}
       <section className="bg-white">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-20">
+          <h2 className="sr-only">{t("themes.heading", lang)}</h2>
           <div className="text-xs font-bold uppercase tracking-widest text-emerald-700">
             {t("hero.thememap", lang)}
           </div>

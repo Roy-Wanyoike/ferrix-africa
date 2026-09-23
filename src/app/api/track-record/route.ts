@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { safeJson, trackRecordSchema, validateBody } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,14 @@ export async function GET(req: NextRequest) {
     const candidateId = req.nextUrl.searchParams.get("candidateId");
     if (!candidateId)
       return NextResponse.json({ error: "candidateId required" }, { status: 400 });
+
+    // BE-17: unknown candidateId → 404 instead of a silent empty summary.
+    const candidate = await db.candidate.findUnique({
+      where: { id: candidateId },
+      select: { id: true },
+    });
+    if (!candidate)
+      return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
 
     const entries = await db.trackRecordEntry.findMany({
       where: { candidateId },
@@ -44,15 +53,17 @@ export async function GET(req: NextRequest) {
 // POST /api/track-record — a human coordinator adds a verified entry.
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { candidateId, kind, title, org, detail, rating, verifiedBy } = body;
-    if (!candidateId || !kind || !title?.trim())
-      return NextResponse.json(
-        { error: "candidateId, kind and title are required" },
-        { status: 400 }
-      );
-    if (!["PLACEMENT", "TRAINING", "REVIEW"].includes(kind))
-      return NextResponse.json({ error: "kind must be PLACEMENT, TRAINING or REVIEW" }, { status: 400 });
+    // BE-02: malformed JSON → 400.
+    const raw = await safeJson(req);
+    if (raw === null) {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    // SEC-02: zod contract (kind enum, length caps, rating 1..5, ISO datetime).
+    const parsed = validateBody(trackRecordSchema, raw);
+    if (parsed.res) return parsed.res;
+    const { candidateId, kind, title, org, detail, rating, occurredAt, verifiedBy } =
+      parsed.data;
 
     const candidate = await db.candidate.findUnique({ where: { id: candidateId } });
     if (!candidate) return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
@@ -61,12 +72,13 @@ export async function POST(req: NextRequest) {
       data: {
         candidateId,
         kind,
-        title: title.trim(),
-        org: org?.trim() || null,
-        detail: detail?.trim() || null,
-        rating: kind === "REVIEW" && rating >= 1 && rating <= 5 ? Math.round(rating) : null,
+        title,
+        org: org || null,
+        detail: detail || null,
+        rating: kind === "REVIEW" && rating != null ? rating : null,
         verified: true,
-        verifiedBy: verifiedBy?.trim() || "Coordinator (Ujuzi Hub)",
+        verifiedBy: verifiedBy || "Coordinator (Ujuzi Hub)",
+        ...(occurredAt ? { occurredAt: new Date(occurredAt) } : {}),
       },
     });
     return NextResponse.json({ ok: true, entry });

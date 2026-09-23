@@ -68,17 +68,30 @@ interface TrackEntry {
 // refreshKey (status/updatedAt) forces a refetch after coordinator actions.
 function TrackRecordSection({ candidateId, lang, refreshKey }: { candidateId: string; lang: Lang; refreshKey: string }) {
   const [entries, setEntries] = useState<TrackEntry[]>([]);
+  const [error, setError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let live = true;
     fetch(`/api/track-record?candidateId=${candidateId}`)
-      .then((r) => r.json())
-      .then((d) => live && setEntries(d.entries ?? []))
-      .catch(() => {});
+      .then((r) => {
+        if (!r.ok) throw new Error("track-record request failed");
+        return r.json();
+      })
+      .then((d) => {
+        if (!live) return;
+        setEntries(d.entries ?? []);
+        setError(false);
+      })
+      .catch(() => {
+        if (!live) return;
+        setEntries([]);
+        setError(true); // FE-11: surface failure instead of a silent empty state
+      });
     return () => {
       live = false;
     };
-  }, [candidateId, refreshKey]);
+  }, [candidateId, refreshKey, retryKey]);
 
   const kindLabel = (k: string) =>
     k === "PLACEMENT"
@@ -92,14 +105,27 @@ function TrackRecordSection({ candidateId, lang, refreshKey }: { candidateId: st
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-bold text-stone-800">
           <ShieldCheck className="h-4 w-4 text-emerald-700" />
-          {t("case.track", lang)}
+          <h2>{t("case.track", lang)}</h2>
           <span className="ml-auto text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-            {entries.length} {lang === "sw" ? "rekodi" : "records"}
+            {entries.length} {t("track.records", lang)}
           </span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {entries.length === 0 ? (
+        {error ? (
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-red-700">
+            <span>{t("errors.loadFailed", lang)}</span>
+            <button
+              onClick={() => {
+                setError(false);
+                setRetryKey((k) => k + 1);
+              }}
+              className="inline-flex min-h-[36px] items-center rounded-full border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+            >
+              {t("errors.retryBtn", lang)}
+            </button>
+          </div>
+        ) : entries.length === 0 ? (
           <p className="text-xs italic text-stone-500">{t("track.empty", lang)}</p>
         ) : (
           <ul className="flex flex-wrap gap-2">
@@ -116,18 +142,18 @@ function TrackRecordSection({ candidateId, lang, refreshKey }: { candidateId: st
                   ) : (
                     <Star className="h-3 w-3 text-amber-500" />
                   )}
-                  <span className="text-[9px] font-black uppercase tracking-wide text-stone-400">
+                  <span className="text-[9px] font-black uppercase tracking-wide text-stone-600">
                     {kindLabel(e.kind)}
                   </span>
                   {e.rating != null && (
-                    <span className="text-[10px] font-bold text-amber-600">{"★".repeat(e.rating)}</span>
+                    <span className="text-[10px] font-bold text-amber-700">{"★".repeat(e.rating)}</span>
                   )}
                 </div>
                 <div className="mt-0.5 text-xs font-bold text-stone-800">{e.title}</div>
                 {e.org && <div className="text-[10px] text-stone-500">{e.org}</div>}
                 {e.verifiedBy && (
                   <div className="mt-0.5 text-[9px] font-semibold text-emerald-700">
-                    ✓ {t("track.verifiedBy", lang)} {e.verifiedBy}
+                    <span aria-hidden="true">✓</span> {t("track.verifiedBy", lang)} {e.verifiedBy}
                   </div>
                 )}
               </li>
@@ -145,6 +171,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const [placeOpp, setPlaceOpp] = useState<string>("");
 
@@ -152,16 +179,20 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
     setLoading(true);
     try {
       const [cRes, sRes] = await Promise.all([fetch("/api/cases"), fetch("/api/stats")]);
+      if (!cRes.ok || !sRes.ok) throw new Error("dashboard request failed");
       const cData = await cRes.json();
       const sData = await sRes.json();
       setCases(cData.cases ?? []);
       setStats(sData);
+      setLoadError(false);
     } catch {
-      toast({ title: "Could not load cases", description: "Check the connection and refresh." });
+      setCases([]);
+      setLoadError(true); // FE-11: surface failure with an inline retry
+      toast({ title: t("toast.load.title", lang), description: t("toast.load.body", lang) });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, lang]);
 
   useEffect(() => {
     load();
@@ -189,11 +220,11 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
       if (data.error) throw new Error(data.error);
       toast({
         title: `${selected.ref} — ${t(`status.${data.status}`, lang)}`,
-        description: "Audit trail updated. Every action is attributable.",
+        description: t("toast.action.body", lang),
       });
       await load();
     } catch (err) {
-      toast({ title: "Action failed", description: err instanceof Error ? err.message : "Try again." });
+      toast({ title: t("toast.action.title", lang), description: err instanceof Error ? err.message : t("errors.retry", lang) });
     } finally {
       setActing(null);
     }
@@ -218,9 +249,9 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
         </div>
         <button
           onClick={load}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-1.5 text-xs font-semibold text-stone-600 hover:border-emerald-500 hover:text-emerald-700"
+          className="ml-auto inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-stone-300 px-3.5 py-2 text-xs font-semibold text-stone-600 hover:border-emerald-500 hover:text-emerald-700 sm:min-h-[36px] sm:py-1.5"
         >
-          <RefreshCcw className="h-3.5 w-3.5" /> Refresh
+          <RefreshCcw className="h-3.5 w-3.5" /> {t("coord.refresh", lang)}
         </button>
       </div>
 
@@ -239,15 +270,26 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[340px_1fr]">
         {/* ---------- QUEUE ---------- */}
-        <Card className="border-stone-200 self-start">
+        <Card className="min-w-0 border-stone-200 self-start">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-bold text-stone-800">
               <ClipboardList className="h-4 w-4 text-emerald-600" />
-              {t("cases.title", lang)}
+              <h2>{t("cases.title", lang)}</h2>
             </CardTitle>
           </CardHeader>
           <CardContent className="max-h-[560px] space-y-2 overflow-y-auto pr-1.5">
-            {loading && <p className="text-xs text-stone-400">{t("common.loading", lang)}</p>}
+            {loading && <p className="text-xs text-stone-500">{t("common.loading", lang)}</p>}
+            {!loading && loadError && (
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-red-700">
+                <span>{t("errors.loadFailed", lang)}</span>
+                <button
+                  onClick={load}
+                  className="inline-flex min-h-[36px] items-center rounded-full border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                >
+                  {t("errors.retryBtn", lang)}
+                </button>
+              </div>
+            )}
             {cases.map((c) => (
               <button
                 key={c.id}
@@ -261,10 +303,10 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
                     : "border-stone-200 bg-white hover:border-stone-300"
                 }`}
               >
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <span className="font-mono text-xs font-bold text-stone-800">{c.ref}</span>
                   <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${priorityColors[c.priority]}`}>
-                    {c.priority}
+                    {t(`case.priority.${c.priority}`, lang)}
                   </span>
                   <span
                     className={`ml-auto rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase ${statusColors[c.status]}`}
@@ -273,10 +315,10 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
                   </span>
                 </div>
                 <div className="mt-1 truncate text-sm font-bold text-stone-900">
-                  {c.candidate.name ?? "Unnamed"}
+                  {c.candidate.name ?? t("case.unnamed", lang)}
                 </div>
                 <div className="truncate text-[11px] text-stone-500">
-                  {c.candidate.personaLabel ?? "Worker"} · {c.candidate.location ?? "Nairobi"}
+                  {c.candidate.personaLabel ?? t("case.worker", lang)} · {c.candidate.location ?? t("case.nairobi", lang)}
                 </div>
               </button>
             ))}
@@ -286,7 +328,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
         {/* ---------- DETAIL ---------- */}
         {!selected ? (
           <Card className="border-stone-200">
-            <CardContent className="flex h-64 items-center justify-center text-sm text-stone-400">
+            <CardContent className="flex h-64 items-center justify-center text-sm text-stone-500">
               {t("case.select", lang)}
             </CardContent>
           </Card>
@@ -295,7 +337,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
             key={selected.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
+            className="min-w-0 space-y-4"
           >
             {/* trust banner */}
             <div className="flex items-start gap-2.5 rounded-2xl border-2 border-amber-400 bg-amber-50 p-4">
@@ -313,7 +355,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold">
                   <Bot className="h-4 w-4 text-emerald-400" />
-                  {t("case.summary", lang)}
+                  <h2>{t("case.summary", lang)}</h2>
                   <span className="ml-auto font-mono text-xs text-stone-400">{selected.ref}</span>
                 </CardTitle>
               </CardHeader>
@@ -321,7 +363,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-lg font-black">{selected.candidate.name}</span>
                   <Badge variant="outline" className="border-emerald-500/40 text-emerald-300">
-                    {selected.candidate.personaLabel ?? "Worker"}
+                    {selected.candidate.personaLabel ?? t("case.worker", lang)}
                   </Badge>
                   <Badge variant="outline" className="border-stone-600 text-stone-300">
                     {selected.candidate.location}
@@ -339,11 +381,11 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
                   ))}
                 </div>
                 <dl className="grid gap-x-6 gap-y-1 text-xs text-stone-400 sm:grid-cols-2">
-                  <div><span className="font-semibold text-stone-500">Experience:</span> {selected.candidate.experience}</div>
-                  <div><span className="font-semibold text-stone-500">Digital:</span> {selected.candidate.digitalLiteracy}</div>
-                  <div><span className="font-semibold text-stone-500">Availability:</span> {selected.candidate.availability}</div>
-                  <div><span className="font-semibold text-stone-500">Phone:</span> {selected.candidate.phone}</div>
-                  <div className="sm:col-span-2"><span className="font-semibold text-stone-500">Goal:</span> {selected.candidate.goal}</div>
+                  <div><span className="font-semibold text-stone-500">{t("profile.experience", lang)}:</span> {selected.candidate.experience}</div>
+                  <div><span className="font-semibold text-stone-500">{t("profile.digital", lang)}:</span> {selected.candidate.digitalLiteracy}</div>
+                  <div><span className="font-semibold text-stone-500">{t("profile.availability", lang)}:</span> {selected.candidate.availability}</div>
+                  <div><span className="font-semibold text-stone-500">{t("profile.phone", lang)}:</span> {selected.candidate.phone}</div>
+                  <div className="sm:col-span-2"><span className="font-semibold text-stone-500">{t("profile.goal", lang)}:</span> {selected.candidate.goal}</div>
                 </dl>
               </CardContent>
             </Card>
@@ -358,7 +400,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
             {/* matches */}
             {selected.matches.length > 0 && (
               <div>
-                <h3 className="mb-2 px-1 text-sm font-bold text-stone-800">{t("case.matches", lang)}</h3>
+                <h2 className="mb-2 px-1 text-sm font-bold text-stone-800">{t("case.matches", lang)}</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {selected.matches.map((m) => (
                     <Card key={m.id} className="border-stone-200">
@@ -371,14 +413,14 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
                             <div className="mt-1 text-sm font-bold text-stone-900">{m.opportunity.title}</div>
                             <div className="text-[11px] text-stone-500">{m.opportunity.provider}</div>
                           </div>
-                          <div className="shrink-0 rounded-lg bg-emerald-600 px-2 py-1 text-center text-white">
+                          <div className="shrink-0 rounded-lg bg-emerald-700 px-2 py-1 text-center text-white">
                             <div className="text-xs font-black leading-none">{Math.round(m.score * 100)}%</div>
                           </div>
                         </div>
-                        <div className="mt-1.5 text-xs font-semibold text-stone-700">💰 {m.opportunity.payRange}</div>
+                        <div className="mt-1.5 text-xs font-semibold text-stone-700"><span aria-hidden="true">💰</span> {m.opportunity.payRange}</div>
                         <ul className="mt-1.5 space-y-0.5">
                           {m.reasons.map((r) => (
-                            <li key={r} className="text-[11px] text-emerald-800">✓ {r}</li>
+                            <li key={r} className="text-[11px] text-emerald-800"><span aria-hidden="true">✓</span> {r}</li>
                           ))}
                         </ul>
                       </CardContent>
@@ -391,14 +433,16 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
             {/* actions */}
             <Card className="border-stone-200">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-stone-800">{t("case.actions", lang)}</CardTitle>
+                <CardTitle className="text-sm font-bold text-stone-800">
+                  <h2>{t("case.actions", lang)}</h2>
+                </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-wrap items-center gap-2">
                 {selected.status === "new" && (
                   <button
                     onClick={() => act("accept")}
                     disabled={acting !== null}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-500 disabled:opacity-50"
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-600 disabled:opacity-50"
                   >
                     <UserPlus className="h-4 w-4" /> {t("case.accept", lang)}
                   </button>
@@ -407,7 +451,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
                   <button
                     onClick={() => act("contact")}
                     disabled={acting !== null}
-                    className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-stone-800 disabled:opacity-50"
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-stone-800 disabled:opacity-50"
                   >
                     <PhoneCall className="h-4 w-4" /> {t("case.contact", lang)}
                   </button>
@@ -416,7 +460,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
                   <div className="flex flex-wrap items-center gap-2">
                     <Select value={placeOpp} onValueChange={setPlaceOpp}>
                       <SelectTrigger className="w-[260px] bg-white">
-                        <SelectValue placeholder="Choose opportunity…" />
+                        <SelectValue placeholder={t("case.chooseOpp", lang)} />
                       </SelectTrigger>
                       <SelectContent>
                         {selected.matches.map((m) => (
@@ -429,7 +473,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
                     <button
                       onClick={() => placeOpp && act("place", placeOpp)}
                       disabled={!placeOpp || acting !== null}
-                      className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-stone-950 hover:bg-amber-400 disabled:opacity-50"
+                      className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-stone-950 hover:bg-amber-400 disabled:opacity-50"
                     >
                       <Handshake className="h-4 w-4" /> {t("case.place", lang)}
                     </button>
@@ -439,7 +483,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
                   <button
                     onClick={() => act("resolve")}
                     disabled={acting !== null}
-                    className="inline-flex items-center gap-2 rounded-xl border-2 border-emerald-600 px-4 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-emerald-600 px-4 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
                   >
                     <CheckCircle2 className="h-4 w-4" /> {t("case.resolve", lang)}
                   </button>
@@ -457,7 +501,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold text-stone-800">
                   <FileClock className="h-4 w-4 text-stone-500" />
-                  {t("case.timeline", lang)}
+                  <h2>{t("case.timeline", lang)}</h2>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -470,7 +514,7 @@ export default function CoordinatorView({ lang, focusRef }: Props) {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`text-xs font-black uppercase ${a.label}`}>{e.actor}</span>
                           <span className="text-xs font-semibold text-stone-700">{e.action}</span>
-                          <span className="ml-auto text-[10px] text-stone-400">
+                          <span className="ml-auto text-[10px] text-stone-600">
                             {format(new Date(e.createdAt), "d MMM · HH:mm")}
                           </span>
                         </div>

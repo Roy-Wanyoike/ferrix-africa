@@ -9,7 +9,7 @@ Ferrix is a voice-first AI livelihood copilot for Africa's informal workforce �
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748)](https://prisma.io)
-[![Made in Nairobi](https://img.shields.io/badge/Made%20in-Nairobi-emerald)](https://github.com/Roy-Wanyoike/ferrix)
+[![Made in Nairobi](https://img.shields.io/badge/Made%20in-Nairobi-emerald)](https://github.com/Roy-Wanyoike/ferrix-africa)
 
 ---
 
@@ -113,11 +113,13 @@ src/
 - **UX for real users** — voice-first flows, bilingual i18n, WhatsApp-native patterns, low-bandwidth empathy, mobile-verified layouts.
 - **Engineering hygiene** — ESLint-clean, strict TypeScript-clean (`tsc --noEmit`), seeded fixtures, browser-verified golden path, scripted E2E (`scripts/e2e.sh`).
 
+> Note: `scripts/e2e.sh` is our sandbox-internal verification harness, not a packaged test suite — it hardcodes workspace paths and drives the `agent-browser` CLI. It runs after adjusting the `cd` path at the top of the script to your local checkout.
+
 ## Run it locally
 
 ```bash
-git clone https://github.com/Roy-Wanyoike/ferrix.git
-cd ferrix
+git clone https://github.com/Roy-Wanyoike/ferrix-africa.git
+cd ferrix-africa
 bun install                # or npm install
 cp .env.example .env
 npm run db:push            # create SQLite schema
@@ -131,7 +133,7 @@ Demo logins: none — the coordinator view is one click away by design (it's a p
 
 You can deploy with one click — then make **two small changes** first:
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FRoy-Wanyoike%2Fferrix)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FRoy-Wanyoike%2Fferrix-africa)
 
 ### The honest challenges (and the fixes)
 
@@ -142,6 +144,8 @@ You can deploy with one click — then make **two small changes** first:
 | **Prisma engine binaries** | Vercel runs Node functions on Amazon Linux. | Already handled: `binaryTargets = ["native", "rhel-openssl-3.0.x"]` in the schema and `postinstall: prisma generate` in package.json. |
 | **Voice input needs HTTPS** | Web Speech API requires a secure context. | Non-issue on Vercel (automatic HTTPS). Note: iOS Safari support is patchy — Kenya's Android/Chrome majority is unaffected. |
 | **Seeding is a one-off, not a build step** | `db:seed` is a script, not a migration. | Run it once locally pointed at the remote `DATABASE_URL`. |
+
+**Security posture (demo):** the demo ships without authentication — coordinator actions and the cases API are open by design for one-click judging; production roadmap adds phone-OTP auth, rate limiting is already applied to AI-cost routes, and no secrets are committed. Do not host real worker PII on the public demo.
 
 ### Roadmap (post-hackathon)
 
