@@ -149,11 +149,14 @@ You can deploy with one click — then make **two small changes** first:
 
 ### Roadmap (post-hackathon)
 
-1. **WhatsApp Business API / Twilio SMS** — real channels instead of the simulated chat.
-2. **Postgres + row-level security**, coordinator auth (phone OTP), organization accounts.
-3. **Verifiable track records** — signed work passports a worker owns and carries across platforms.
-4. **Employer portal** — demand side: post gigs, confirm attendance, write reviews into the passport.
-5. **Offline USSD path** — feature-phone intake for the lowest-literacy, lowest-data users.
+> **Startup vision:** the full big-dream blueprint — market sizing, ElevenLabs-inspired voice strategy, moat/flywheel design, funding roadmap and the 90-day plan — lives in [`docs/STARTUP_VISION.md`](docs/STARTUP_VISION.md).
+
+1. **WhatsApp Business API** — voice-note intake behind a `ChannelAdapter` interface; service-window messages are free, putting Ferrix where workers already are.
+2. **Audible work passport ("Sikiliza Passport Yako")** — TTS reads the passport aloud in Kiswahili, so trust works for low-literacy users and clients alike.
+3. **Postgres + multi-tenancy (`orgId`)**, coordinator auth (phone OTP), organization accounts for SACCOs/NGOs/counties.
+4. **Sheng-normalization layer** — LLM post-ASR pass making Ferrix the only tool that understands how young Nairobi actually talks; collects the correction dataset nobody else has.
+5. **Verified-outcome flywheel** — post-job verification calls stamp badges on signed, worker-owned passports that become lender-grade credit data.
+6. **Offline USSD/IVR path** — feature-phone intake for the lowest-literacy, lowest-data users (the Jacaranda/Viamo pattern).
 
 ## Hackathon alignment
 
