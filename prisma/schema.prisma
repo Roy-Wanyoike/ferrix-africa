@@ -27,6 +27,7 @@ model Candidate {
   aiSummary       String?
   confidence      Float?
   profile         String? // JSON full structured profile
+  voiceBio        String? // base64 data-URL audio intro (work-passport voice bio, <=1MB)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   messages        Message[]
@@ -88,6 +89,7 @@ model Match {
   opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
   score         Float
   reasons       String // JSON string[]
+  matcherVersion String    @default("v1")
   createdAt     DateTime    @default(now())
 
   @@index([candidateId])
