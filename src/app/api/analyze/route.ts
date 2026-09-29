@@ -9,9 +9,10 @@ import {
   untrustedBlock,
   type StructuredProfile,
 } from "@/lib/ai";
-import { rankOpportunities } from "@/lib/matcher";
+import { MATCHER_VERSION, rankOpportunities } from "@/lib/matcher";
 import { analyzeSchema, safeJson, safeParseJson, validateBody } from "@/lib/validate";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { authModeHeaders, requireMutatingAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,11 @@ const isUniqueViolation = (err: unknown): boolean =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
 
 export async function POST(req: NextRequest) {
+  // SEC-01: mutating route — open in demo mode, bearer/x-api-key gated when
+  // FERRIX_API_TOKEN is set (401 carries x-ferrix-auth: enforced).
+  const guard = requireMutatingAuth(req);
+  if (guard) return guard;
+
   // SEC-03: per-IP fixed window — 10 req/min (LLM-heavy route).
   const gate = rateLimit(`analyze:${clientIp(req)}`, 10, 60_000);
   if (!gate.ok) return tooManyRequests(gate.retryAfter);
@@ -162,6 +168,7 @@ export async function POST(req: NextRequest) {
           opportunityId: m.id,
           score: m.score,
           reasons: JSON.stringify(m.reasons),
+          matcherVersion: MATCHER_VERSION, // audit-stamp the scorer version on every decision
         },
       });
     }
@@ -240,32 +247,39 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({
-      profile,
-      matches: scored.map((m) => ({
-        id: m.id,
-        score: m.score,
-        reasons: m.reasons,
-        opportunity: {
+    return NextResponse.json(
+      {
+        // Versioning contract: the response always carries the version that
+        // PRODUCED these scores (see MATCHER_VERSION JSDoc in lib/matcher.ts).
+        matcherVersion: MATCHER_VERSION,
+        profile,
+        matches: scored.map((m) => ({
+          matcherVersion: MATCHER_VERSION,
           id: m.id,
-          title: m.title,
-          type: m.type,
-          provider: m.provider,
-          location: m.location,
-          payRange: m.payRange,
-          duration: m.duration,
-          description: m.description,
+          score: m.score,
+          reasons: m.reasons,
+          opportunity: {
+            id: m.id,
+            title: m.title,
+            type: m.type,
+            provider: m.provider,
+            location: m.location,
+            payRange: m.payRange,
+            duration: m.duration,
+            description: m.description,
+          },
+        })),
+        case: {
+          id: targetCase.id,
+          ref: targetCase.ref,
+          priority: targetCase.priority,
+          status: targetCase.status,
+          request: targetCase.request,
         },
-      })),
-      case: {
-        id: targetCase.id,
-        ref: targetCase.ref,
-        priority: targetCase.priority,
-        status: targetCase.status,
-        request: targetCase.request,
+        mode: parsedLlm ? "live" : "fallback",
       },
-      mode: parsedLlm ? "live" : "fallback",
-    });
+      { headers: authModeHeaders() }
+    );
   } catch (err) {
     console.error("[analyze] error:", err);
     return NextResponse.json({ error: "Analyze failed" }, { status: 500 });

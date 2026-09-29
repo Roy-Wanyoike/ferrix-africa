@@ -8,6 +8,7 @@ import {
 } from "@/lib/ai";
 import { assetSchema, safeJson, safeParseJson, validateBody } from "@/lib/validate";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { requireMutatingAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,10 @@ const cvFallback = (profile: StructuredProfile): string =>
   ].join("\n");
 
 export async function POST(req: NextRequest) {
+  // SEC-01: mutating route — no-op in open demo mode, 401 when FERRIX_API_TOKEN is set.
+  const authGuard = requireMutatingAuth(req);
+  if (authGuard) return authGuard;
+
   // SEC-03: per-IP fixed window — 20 req/min.
   const gate = rateLimit(`asset:${clientIp(req)}`, 20, 60_000);
   if (!gate.ok) return tooManyRequests(gate.retryAfter);

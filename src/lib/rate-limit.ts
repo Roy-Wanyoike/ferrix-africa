@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authModeHeaders } from "@/lib/auth";
 
 // SEC-03: tiny in-memory fixed-window rate limiter, per server instance.
 // Demo-scale by design (generous limits never trip during a demo) but it stops
@@ -52,6 +53,12 @@ export function clientIp(req: Request): string {
 export function tooManyRequests(retryAfter: number) {
   return NextResponse.json(
     { error: "Too many requests, try again shortly" },
-    { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    {
+      status: 429,
+      headers: {
+        "Retry-After": String(retryAfter),
+        ...authModeHeaders(),
+      },
+    }
   );
 }

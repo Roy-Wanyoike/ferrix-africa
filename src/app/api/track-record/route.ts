@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authModeHeaders, requireMutatingAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { safeJson, trackRecordSchema, validateBody } from "@/lib/validate";
 
@@ -52,6 +53,11 @@ export async function GET(req: NextRequest) {
 
 // POST /api/track-record — a human coordinator adds a verified entry.
 export async function POST(req: NextRequest) {
+  // SEC-01: enforced-mode gate (401) before any validation or DB work.
+  // In open demo mode (FERRIX_API_TOKEN unset) this is a no-op returning null.
+  const guard = requireMutatingAuth(req);
+  if (guard) return guard;
+
   try {
     // BE-02: malformed JSON → 400.
     const raw = await safeJson(req);
@@ -81,7 +87,8 @@ export async function POST(req: NextRequest) {
         ...(occurredAt ? { occurredAt: new Date(occurredAt) } : {}),
       },
     });
-    return NextResponse.json({ ok: true, entry });
+    // SEC-01: stamp the auth mode so auditors can see open-demo vs enforced.
+    return NextResponse.json({ ok: true, entry }, { headers: { ...authModeHeaders() } });
   } catch (err) {
     console.error("[track-record POST] error:", err);
     return NextResponse.json({ error: "Failed to add record" }, { status: 500 });

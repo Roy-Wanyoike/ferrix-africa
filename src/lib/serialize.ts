@@ -46,6 +46,7 @@ export function serializeCase(c: CaseWithRelations) {
     matches: c.candidate.matches.map((m) => ({
       id: m.id,
       score: m.score,
+      matcherVersion: m.matcherVersion,
       reasons: safeParseJson<string[]>(m.reasons, []),
       opportunity: {
         id: m.opportunity.id,

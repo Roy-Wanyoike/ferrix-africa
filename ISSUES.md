@@ -8,11 +8,25 @@
 
 - **FIXED + QA-VERIFIED: 50** — all P0s and all P1s. Browser E2E: 11/11 PASS (QA task 4-a). API regression: 38/38 probes PASS (QA task 4-b). Static gates: `bun run lint` exit 0 (5 pre-existing warnings), `npx tsc --noEmit` exit 0.
   - BE-01…BE-19 (all) · FE-01…FE-15 (all) · PRD-01…PRD-08 (all) · SEC-02/03/04/05 · HYG-01/02/03 · CONFIG-01/02/03
-- **DEFERRED (documented tradeoffs, open post-demo): 3**
-  - SEC-01 full authentication — coordinator OTP per roadmap; demo-mode open by design (README security note added).
-  - HYG-05 dependency prune (~24 unused deps) — `bun remove` deferred until after demo window to avoid touching the running server's node_modules.
-  - HYG-04 Caddyfile — kept intentionally: required by the sandbox preview gateway; removing breaks preview.
+- **DEFERRED CLOSED (2026-09-29 build cycle, QA re-verified): 2**
+  - **SEC-01 ✅ CLOSED** — env-gated auth shipped: `src/lib/auth.ts` (`requireMutatingAuth`) applied to **every** mutating route (chat, analyze, cases PATCH, track-record, asset, voice-bio). Contract: `FERRIX_API_TOKEN` set (≥8 chars) → 401 without `Authorization: Bearer`/`x-api-key`; unset → open judge demo. Every `/api/*` response stamps `x-ferrix-auth: open-demo|enforced` via the Next 16 proxy (`src/proxy.ts`). Regression: `scripts/auth-verify.mjs` 9/9 PASS.
+  - **HYG-05 ✅ CLOSED** — 14 unused deps removed live (66→52): @dnd-kit/* ×3, @hookform/resolvers, @mdxeditor/editor, @reactuses/core, @tanstack/* ×2, next-auth, next-intl, react-markdown, react-syntax-highlighter, uuid, zustand. Verified: tsc 0, lint 0 errors, server healthy.
+- **KEPT BY DESIGN (re-verified 2026-09-29): 1**
+  - HYG-04 Caddyfile — structurally required by the sandbox preview gateway (`:81` → `localhost:3000`); removing breaks preview.
 - **ACTIVATES ON NEXT RESTART:** BE-14/SEC-05 Prisma query-log gate (code in place; running server holds pre-fix client singleton — restart forbidden by protocol).
+
+## Build-cycle 2 (2026-09-29) — new work, all QA-verified
+
+| ID | Area | Shipped | Verification |
+|---|---|---|---|
+| VOX-01…04 | voice | Audible work passport ("Sikiliza Passport Yako"), spoken match explanations, voice-bio record/upload/playback (`/api/voice-bio`), optional voice-interview intake toggle — all bilingual EN/SW, graceful degradation headless-safe | Browser E2E 32/32, 0 console errors |
+| CHAN-01 | channels | `ChannelAdapter` contract + WhatsApp Cloud API webhook (`/api/channels/whatsapp`): hub.challenge, `X-Hub-Signature-256` verification, idempotency, LLM auto-reply, open-demo mode | `scripts/whatsapp-verify.mjs` 12/12 PASS + live curl |
+| API-VER-01 | matcher | `MATCHER_VERSION="v1"` stamped on every Match row + surfaced in `/api/analyze`, `/api/cases{/{id}}` | API regression A6/A3 PASS |
+| DOCS-01 | docs | `docs/openapi.json` (OpenAPI 3.1, 9 paths/13 ops), `docs/API.md`, `docs/CHANNELS.md` | JSON-valid; docs-parity drift found by QA fixed (header claim, stale gap note, idempotency asymmetry documented) |
+| API-404 | api | JSON 404 catch-all for unknown `/api/*` paths (was Next HTML) | curl verified |
+| HDR-01 | api | Global `x-ferrix-auth` stamp on every `/api/*` response (proxy) | curl verified |
+
+- **Build-cycle QA: API regression 60/63 → 3 findings all fixed (2 P1 header/docs drift + stale note, verified live) · Browser E2E 32/32 PASS, 0 console errors · lint 0 errors · tsc 0 · production `next build` OK · e2e.sh golden path PASS, screenshots regenerated.**
 
 ## P0 — Demo/investor-path breakers
 
@@ -21,7 +35,7 @@
 | BE-01 | api/chat | Garbage/stale candidateId + message → Prisma FK 500, bricks chat session | curl → `{"error":"Chat failed"}` 500 | Existence check → 404 |
 | PRD-01 | README | One-click Vercel Deploy button → nonexistent repo `Roy-Wanyoike/ferrix` (404) | README:134, live 404 | Point to `ferrix-africa` |
 | PRD-02 | git | `.env.example` matched by `.env*` ignore rule — never committed; README quickstart fails on fresh clone | `git ls-files .env.example` empty | `!.env.example` + commit |
-| SEC-01 | api/* | No auth/rate-limit: `/api/cases` leaks candidate PII; `POST /api/track-record` forges `verified:true` entries; PATCH cases is open | route reads | Demo-mode hardening: zod + rate limits + headers; full auth documented (roadmap) |
+| SEC-01 | api/* | No auth/rate-limit: `/api/cases` leaks candidate PII; `POST /api/track-record` forges `verified:true` entries; PATCH cases is open | route reads | ✅ CLOSED 2026-09-29: env-gated auth on all mutations (`FERRIX_API_TOKEN`), global `x-ferrix-auth` stamp, rate limits kept; demo stays open when unset |
 | BE-04 | api/cases/[id] | No workflow state machine — place succeeds from `new`; unknown actions return ok:true | curl place-on-new → 200 | Enforce transition map |
 
 ## P1 — Wrong behavior / broken claims
@@ -55,7 +69,7 @@
 | PRD-04 | db | `db/` dir untracked → fresh-clone `db:push` may fail to open DB | git ls-files db/ empty | .gitkeep + mkdir guard |
 | PRD-05 | scripts | e2e.sh hardcodes sandbox paths but README presents it as recruiter-facing | e2e.sh:5 | Label as sandbox-internal |
 | CONFIG-01 | build | `typescript.ignoreBuildErrors:true`; reactStrictMode:false | next.config.ts:6-8 | Remove + enable |
-| HYG-05 | deps | ~24 installed-but-unused deps (next-auth, dnd-kit, mdxeditor, uuid…) | 0 imports | Prune (post-demo; see note) |
+| HYG-05 | deps | ~24 installed-but-unused deps (next-auth, dnd-kit, mdxeditor, uuid…) | 0 imports | ✅ CLOSED 2026-09-29: 14 deps removed (66→52), tsc/lint/runtime verified |
 
 ## P2 — Hardening & polish
 
@@ -81,7 +95,7 @@
 | PRD-07 | db | Demo-state drift from audit probes (extra cases/candidates) | Reseed before QA/demo |
 | BE-17b | api | track-record unknown candidate → 200 empty | covered BE-17 |
 
-## Deferred (documented, not executed this cycle)
-- HYG-05 dep prune: `bun remove` touches node_modules + lockfile while dev server runs — scheduled post-demo.
-- SEC-01 full auth (coordinator OTP per roadmap): deliberate demo-mode tradeoff, documented in README security note.
-- HYG-04 Caddyfile: required by sandbox preview gateway; removing breaks preview.
+## Deferred (closed / resolved 2026-09-29)
+- ~~HYG-05 dep prune~~ — ✅ executed (14 deps removed, verified live, rollback in git history).
+- ~~SEC-01 full auth~~ — ✅ closed: `src/lib/auth.ts` + proxy header stamp + `scripts/auth-verify.mjs` (9/9); OTP-based coordinator accounts remain a roadmap upgrade beyond the token gate.
+- HYG-04 Caddyfile: required by sandbox preview gateway; removing breaks preview — KEPT, re-verified.

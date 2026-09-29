@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { NextResponse } from "next/server";
+import { authModeHeaders } from "@/lib/auth";
 
 // Shared request-body contracts (SEC-02 / BE-09) + parse guards (BE-02 / BE-13).
 // Every mutating API route validates its body with one of these zod schemas
@@ -72,11 +73,17 @@ export function firstIssueMessage(error: z.ZodError): string {
 }
 
 export function badRequest(message: string) {
-  return NextResponse.json({ error: message }, { status: 400 });
+  return NextResponse.json(
+    { error: message },
+    { status: 400, headers: authModeHeaders() }
+  );
 }
 
 export function notFound(message: string) {
-  return NextResponse.json({ error: message }, { status: 404 });
+  return NextResponse.json(
+    { error: message },
+    { status: 404, headers: authModeHeaders() }
+  );
 }
 
 // SEC-02: validate `raw` against a schema; on failure return the 400 response.

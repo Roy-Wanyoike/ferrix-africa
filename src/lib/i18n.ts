@@ -156,6 +156,53 @@ export const UI: Record<Lang, Record<string, string>> = {
     "a11y.listen": "Listen",
     "a11y.voice": "Voice input",
     "a11y.send": "Send",
+
+    // ---- Flagship voice features (task 4-a) ----
+    "common.stop": "Stop",
+    // "Sikiliza Passport Yako" — audible work passport
+    "track.speak.play": "Listen to your passport",
+    "track.speak.stop": "Stop",
+    "track.speak.playing": "Reading your passport aloud…",
+    "track.speak.unavailable": "Voice playback is not available in this browser — the passport still works as text.",
+    "track.speak.title": "This is the verified work passport of {name}.",
+    "track.speak.placements": "{name} has completed {count} verified jobs.",
+    "track.speak.trainings": "{name} has completed {count} trainings.",
+    "track.speak.rating": "{count} clients rate {name} at {rating} out of 5 stars.",
+    "track.speak.entry": "{kind}: {title}. Verified.",
+    "track.speak.outro": "Every record here was checked by a human coordinator — hear it, share it, trust it.",
+    "a11y.passportPlay": "Play work passport aloud",
+    "a11y.passportStop": "Stop reading the passport",
+    // Spoken "why this matches" explanations
+    "matches.speak": "Listen to why this matches",
+    "a11y.matchPlay": "Play match explanation",
+    "a11y.matchStop": "Stop match explanation",
+    // Voice bio on the passport
+    "bio.title": "Voice bio — your own voice on the passport",
+    "bio.sub": "Record a 20-second intro in your own words. Clients hear the person behind the record.",
+    "bio.record": "Record voice bio",
+    "bio.recording": "Recording… {s}s / 25s — tap to stop",
+    "bio.preview": "Preview your recording",
+    "bio.save": "Save to my passport",
+    "bio.saved": "Voice bio saved — it now plays from your passport",
+    "bio.play": "Play voice bio",
+    "bio.retry": "Record again",
+    "bio.error": "Something went wrong — please try again.",
+    "bio.unsupported": "Voice recording needs microphone support, which this browser doesn't have — everything else still works.",
+    "a11y.bioPlay": "Play voice bio",
+    "a11y.bioPause": "Pause voice bio",
+    // Turn-based voice interview
+    "interview.toggle": "Voice interview",
+    "interview.sub": "One question at a time, out loud — answer by voice.",
+    "interview.startHint": "Pick a worker above to start — then just speak.",
+    "interview.question": "Question {n} of {total}",
+    "interview.done": "All questions answered — build your profile below.",
+    "interview.tapToAnswer": "Tap the mic and answer",
+    "interview.yourAnswer": "You said:",
+    "interview.confirm": "Confirm & continue",
+    "interview.retry": "Answer again",
+    "interview.unsupported": "Voice interview needs speech recognition, which this browser doesn't have — use the chat instead.",
+    "a11y.interviewMic": "Record your answer",
+    "a11y.interviewStop": "Stop listening",
   },
   sw: {
     "nav.home": "Mwanzo",
@@ -309,7 +356,65 @@ export const UI: Record<Lang, Record<string, string>> = {
     "a11y.listen": "Sikiliza",
     "a11y.voice": "Ingizo la sauti",
     "a11y.send": "Tuma",
+
+    // ---- Vipengele vya sauti (kazi 4-a) ----
+    "common.stop": "Simamisha",
+    // "Sikiliza Passport Yako" — pasipoti inayosomwa kwa sauti
+    "track.speak.play": "Sikiliza pasipoti yako",
+    "track.speak.stop": "Simamisha",
+    "track.speak.playing": "Inasoma pasipoti yako kwa sauti…",
+    "track.speak.unavailable": "Kucheza sauti hakupatikani kwenye kivinjari hiki — pasipoti bado inafanya kazi kama maandishi.",
+    "track.speak.title": "Hii ni pasipoti ya kazi ya {name}, iliyothibitishwa.",
+    "track.speak.placements": "{name} amefanya kazi {count} zilizothibitishwa.",
+    "track.speak.trainings": "{name} amemaliza mafunzo {count}.",
+    "track.speak.rating": "Wateja {count} wanamsifu {name} — nyota {rating} kati ya tano.",
+    "track.speak.entry": "{kind}: {title}. Imethibitishwa.",
+    "track.speak.outro": "Kila rekodi hapa imekaguliwa na mratibu wa binadamu — isikilize, isambaze, iaminike.",
+    "a11y.passportPlay": "Cheza pasipoti kwa sauti",
+    "a11y.passportStop": "Simamisha kusoma pasipoti",
+    // Maelezo ya ufanano kwa sauti
+    "matches.speak": "Sikiliza kwa nini inafaa",
+    "a11y.matchPlay": "Cheza maelezo ya ufanano",
+    "a11y.matchStop": "Simamisha maelezo",
+    // Sauti ya utambulisho kwenye pasipoti
+    "bio.title": "Sauti yako kwenye pasipoti",
+    "bio.sub": "Rekodi utangulizi wa sekunde 20 kwa maneno yako. Wateja wanamsikiliza mtu anayefanya kazi.",
+    "bio.record": "Rekodi sauti yako",
+    "bio.recording": "Inarekodi… {s}s / 25s — bonyeza kusimamisha",
+    "bio.preview": "Sikiliza rekodi yako",
+    "bio.save": "Hifadhi kwenye pasipoti yangu",
+    "bio.saved": "Sauti yako imehifadhiwa — inacheza kutoka pasipoti yako",
+    "bio.play": "Cheza sauti yako",
+    "bio.retry": "Rekodi tena",
+    "bio.error": "Kuna hitilafu — tafadhali jaribu tena.",
+    "bio.unsupported": "Kurekodi kunahitaji maikrofoni, ambayo kivinjari hiki hakina — vingine vyote vinaendelea kufanya kazi.",
+    "a11y.bioPlay": "Cheza sauti ya utambulisho",
+    "a11y.bioPause": "Sitisha sauti",
+    // Mahojiano ya sauti (swali moja kwa wakati)
+    "interview.toggle": "Mahojiano kwa sauti",
+    "interview.sub": "Swali moja kwa wakati, kwa sauti — jibu kwa sauti.",
+    "interview.startHint": "Chagua mfanyakazi hapo juu kuanza — kisha zungumza tu.",
+    "interview.question": "Swali {n} kwa {total}",
+    "interview.done": "Maswali yote yamejibiwa — tengeneza wasifu wako hapo chini.",
+    "interview.tapToAnswer": "Bonyeza maikrofoni kisha jibu",
+    "interview.yourAnswer": "Ulisema:",
+    "interview.confirm": "Thibitisha & endelea",
+    "interview.retry": "Jibu tena",
+    "interview.unsupported": "Mahojiano kwa sauti yanahitaji utambuzi wa sauti, ambao kivinjari hiki hakina — tumia mazungumzo badala yake.",
+    "a11y.interviewMic": "Rekodi jibu lako",
+    "a11y.interviewStop": "Simamisha kusikiliza",
   },
 };
 
 export const t = (key: string, lang: Lang) => UI[lang][key] ?? UI.en[key] ?? key;
+
+// Template interpolation over UI strings: tf("bio.recording", lang, { s: 7 })
+// → "Recording… 7s / 25s — tap to stop". Unknown variables stay as {key}.
+export const tf = (
+  key: string,
+  lang: Lang,
+  vars: Record<string, string | number>
+) =>
+  t(key, lang).replace(/\{(\w+)\}/g, (match, name: string) =>
+    Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : match
+  );

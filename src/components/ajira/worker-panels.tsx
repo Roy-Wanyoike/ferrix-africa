@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { motion } from "framer-motion";
 import {
   BadgeCheck,
   Bot,
   Briefcase,
+  Check,
   Copy,
   Cpu,
   FileText,
@@ -13,17 +14,49 @@ import {
   Handshake,
   Loader2,
   MapPin,
+  Mic,
+  Pause,
+  Play,
   ScanSearch,
   ShieldCheck,
+  Square,
   Star,
+  Volume2,
   Wallet,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { t, type Lang } from "@/lib/i18n";
+import { t, tf, type Lang } from "@/lib/i18n";
+import {
+  getSpeakingServerSnapshot,
+  getSpeakingSnapshot,
+  isSpeechSupported,
+  speak,
+  stopSpeaking,
+  subscribeSpeaking,
+} from "@/lib/speech";
 import type { ScoredMatch, StructuredProfile } from "@/lib/types";
+
+// useSyncExternalStore plumbing for environment-constant feature detection:
+// the server snapshot is always `false`, so SSR renders the degraded UI first
+// and supported browsers flip to the real controls right after hydration —
+// no hydration mismatch, no setState-in-effect.
+const neverSubscribe = () => () => {};
+const serverFalse = () => false;
+
+function isRecordingSupported(): boolean {
+  try {
+    return (
+      typeof window !== "undefined" &&
+      typeof window.MediaRecorder !== "undefined" &&
+      Boolean(navigator.mediaDevices?.getUserMedia)
+    );
+  } catch {
+    return false;
+  }
+}
 
 /* ---------------- Signals panel ---------------- */
 
@@ -163,6 +196,32 @@ const typeColors: Record<string, string> = {
   MICROWORK: "bg-rose-100 text-rose-700 border-rose-200",
 };
 
+/* ---------------- Spoken match explanations ---------------- */
+
+// Small speaker button on each match card: speaks the existing "why this
+// matches" reasons in the current UI language. speak() cancels previous
+// playback; a second tap stops. 44px touch target, localized aria-label.
+function MatchSpeakButton({ match, lang }: { match: ScoredMatch; lang: Lang }) {
+  const speaking = useSyncExternalStore(
+    subscribeSpeaking,
+    getSpeakingSnapshot,
+    getSpeakingServerSnapshot
+  );
+
+  const text = `${match.opportunity.title}. ${match.reasons.join(". ")}`;
+
+  return (
+    <button
+      type="button"
+      onClick={() => (speaking ? stopSpeaking() : speak(text, lang))}
+      aria-label={t(speaking ? "a11y.matchStop" : "a11y.matchPlay", lang)}
+      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-emerald-700 transition-colors hover:bg-emerald-100"
+    >
+      {speaking ? <Square className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+    </button>
+  );
+}
+
 export function MatchList({ matches, lang }: { matches: ScoredMatch[]; lang: Lang }) {
   return (
     <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
@@ -208,8 +267,13 @@ export function MatchList({ matches, lang }: { matches: ScoredMatch[]; lang: Lan
               <p className="mt-2 text-xs leading-relaxed text-stone-600">{m.opportunity.description}</p>
 
               <div className="mt-2 rounded-lg bg-emerald-50 border border-emerald-100 p-2.5">
-                <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                  {t("matches.why", lang)}
+                <div className="flex items-center gap-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                    {t("matches.why", lang)}
+                  </div>
+                  <div className="ml-auto -mr-1.5 -mt-1.5">
+                    <MatchSpeakButton match={m} lang={lang} />
+                  </div>
                 </div>
                 <ul className="mt-1 space-y-0.5">
                   {m.reasons.map((r) => (
@@ -253,6 +317,55 @@ const kindStyles: Record<string, string> = {
   TRAINING: "bg-sky-100 text-sky-800 border-sky-200",
   REVIEW: "bg-amber-100 text-amber-800 border-amber-200",
 };
+
+/* ---------------- "Sikiliza Passport Yako" — audible passport ---------------- */
+
+// Prominent play/stop button that reads a natural-language summary of the work
+// passport aloud (localized EN/SW). Degrades to a localized explainer line when
+// speechSynthesis is unavailable — never a console error.
+function PassportListenButton({ text, lang }: { text: string | null; lang: Lang }) {
+  const canSpeak = useSyncExternalStore(neverSubscribe, isSpeechSupported, serverFalse);
+  const speaking = useSyncExternalStore(
+    subscribeSpeaking,
+    getSpeakingSnapshot,
+    getSpeakingServerSnapshot
+  );
+
+  // Leaving the panel stops playback so audio never outlives the UI.
+  useEffect(() => () => stopSpeaking(), []);
+
+  if (!canSpeak) {
+    return (
+      <p className="text-xs italic text-stone-500">
+        {t("track.speak.unavailable", lang)}
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => (speaking ? stopSpeaking() : speak(text ?? "", lang))}
+        disabled={!text}
+        aria-label={t(speaking ? "a11y.passportStop" : "a11y.passportPlay", lang)}
+        className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-600 disabled:opacity-50"
+      >
+        {speaking ? <Square className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        {speaking ? t("track.speak.stop", lang) : t("track.speak.play", lang)}
+      </button>
+      {speaking && (
+        <p
+          role="status"
+          className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-emerald-700"
+        >
+          <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-600" />
+          {t("track.speak.playing", lang)}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function TrackRecordPanel({
   candidateId,
@@ -334,6 +447,34 @@ export function TrackRecordPanel({
         ? t("track.kind.training", lang)
         : t("track.kind.review", lang);
 
+  // Natural spoken summary of the passport, built from the same track-record
+  // data the panel renders — localized via track.speak.* i18n keys.
+  const passportText = (): string | null => {
+    if (!entries) return null;
+    const name = workerName || t("case.worker", lang);
+    const parts: string[] = [tf("track.speak.title", lang, { name })];
+    if (summary) {
+      if (summary.verifiedCount > 0) {
+        parts.push(tf("track.speak.placements", lang, { name, count: summary.verifiedCount }));
+      }
+      if (summary.trainings > 0) {
+        parts.push(tf("track.speak.trainings", lang, { count: summary.trainings }));
+      }
+      if (summary.avgRating != null && summary.reviews > 0) {
+        parts.push(
+          tf("track.speak.rating", lang, { name, count: summary.reviews, rating: summary.avgRating })
+        );
+      }
+    }
+    // Cap at 8 entries so the audio stays a listenable length.
+    for (const e of entries.slice(0, 8)) {
+      const title = e.org ? `${e.title}, ${e.org}` : e.title;
+      parts.push(tf("track.speak.entry", lang, { kind: kindLabel(e.kind), title }));
+    }
+    parts.push(t("track.speak.outro", lang));
+    return parts.join(" ");
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
       <Card className="border-emerald-300 bg-gradient-to-br from-emerald-50/70 to-white">
@@ -345,6 +486,9 @@ export function TrackRecordPanel({
           <p className="text-xs text-stone-500">{t("track.sub", lang)}</p>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Sikiliza Passport Yako — the passport you can hear */}
+          <PassportListenButton text={passportText()} lang={lang} />
+
           {summary && summary.verifiedCount > 0 && (
             <div className="flex flex-wrap gap-2">
               <Badge className="border border-emerald-200 bg-emerald-700 text-white">
@@ -413,10 +557,347 @@ export function TrackRecordPanel({
               {copied ? t("asset.copied", lang) : t("track.share", lang)}
             </Button>
           )}
+
+          {/* 20-second self-recorded intro — reputation you can hear */}
+          <VoiceBioSection candidateId={candidateId} lang={lang} />
+
           <p className="text-[10px] leading-relaxed text-stone-600">{t("track.autoNote", lang)}</p>
         </CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+/* ---------------- Voice bio (self-recorded passport intro) ---------------- */
+
+const BIO_MAX_SECONDS = 25;
+// ~0.9MB blob ceiling keeps the base64 JSON body under the API's 1.5MB cap
+// (a real 25s opus voice note is ~30–60KB, so honest clients never hit this).
+const BIO_MAX_BLOB_BYTES = 900_000;
+
+function pickRecorderMime(): string | undefined {
+  if (typeof window === "undefined" || typeof window.MediaRecorder === "undefined") {
+    return undefined;
+  }
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (MediaRecorder.isTypeSupported(candidate)) return candidate;
+    } catch {
+      /* keep trying */
+    }
+  }
+  return undefined;
+}
+
+function VoiceBioSection({ candidateId, lang }: { candidateId: string; lang: Lang }) {
+  const [bio, setBio] = useState<{ hasVoiceBio: boolean; audio: string | null } | null>(null);
+  const canRecord = useSyncExternalStore(neverSubscribe, isRecordingSupported, serverFalse);
+  const [recording, setRecording] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
+  const [playing, setPlaying] = useState(false);
+
+  const liveRef = useRef(true);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    let isLive = true;
+    fetch(`/api/voice-bio?candidateId=${candidateId}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("voice-bio load failed"))))
+      .then((d) => {
+        if (!isLive) return;
+        setBio({ hasVoiceBio: Boolean(d.hasVoiceBio), audio: d.audio ?? null });
+      })
+      .catch(() => {
+        if (!isLive) return;
+        // Load failure shouldn't hide the recorder — offer it optimistically.
+        setBio({ hasVoiceBio: false, audio: null });
+      });
+    return () => {
+      isLive = false;
+    };
+  }, [candidateId]);
+
+  const clearTimers = () => {
+    if (tickRef.current) {
+      clearInterval(tickRef.current);
+      tickRef.current = null;
+    }
+    if (autoStopRef.current) {
+      clearTimeout(autoStopRef.current);
+      autoStopRef.current = null;
+    }
+  };
+
+  const stopStreamTracks = (stream: MediaStream) => {
+    try {
+      stream.getTracks().forEach((tr) => tr.stop());
+    } catch {
+      /* best-effort */
+    }
+  };
+
+  const stopRecording = () => {
+    clearTimers();
+    setRecording(false);
+    const rec = recorderRef.current;
+    if (rec && rec.state !== "inactive") {
+      try {
+        rec.stop();
+      } catch {
+        /* already inactive */
+      }
+    }
+  };
+
+  // Unmount: never leave a mic open or a timer running; guard every setState.
+  useEffect(() => {
+    return () => {
+      liveRef.current = false;
+      clearTimers();
+      const rec = recorderRef.current;
+      if (rec) {
+        rec.onstop = null;
+        if (rec.state !== "inactive") {
+          try {
+            rec.stop();
+          } catch {
+            /* already stopped */
+          }
+        }
+        stopStreamTracks(rec.stream);
+      }
+      recorderRef.current = null;
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause();
+        } catch {
+          /* best-effort */
+        }
+      }
+    };
+  }, []);
+
+  const startRecording = async () => {
+    setError(false);
+    setPreview(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!liveRef.current) {
+        stopStreamTracks(stream);
+        return;
+      }
+      const mimeType = pickRecorderMime();
+      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorderRef.current = rec;
+      chunksRef.current = [];
+
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      rec.onstop = () => {
+        clearTimers();
+        stopStreamTracks(stream);
+        if (!liveRef.current) return;
+        setRecording(false);
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
+        if (blob.size === 0 || blob.size > BIO_MAX_BLOB_BYTES) {
+          setError(true);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (!liveRef.current) return;
+          const result = typeof reader.result === "string" ? reader.result : null;
+          if (result && result.startsWith("data:audio/")) setPreview(result);
+          else setError(true);
+        };
+        reader.onerror = () => {
+          if (liveRef.current) setError(true);
+        };
+        try {
+          reader.readAsDataURL(blob);
+        } catch {
+          if (liveRef.current) setError(true);
+        }
+      };
+      rec.onerror = () => {
+        if (!liveRef.current) return;
+        clearTimers();
+        stopStreamTracks(stream);
+        setRecording(false);
+        setError(true);
+      };
+
+      rec.start();
+      setElapsed(0);
+      setRecording(true);
+      tickRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
+      autoStopRef.current = setTimeout(() => stopRecording(), BIO_MAX_SECONDS * 1000);
+    } catch {
+      // Permission denied / no device / recorder failure — inline message only.
+      setError(true);
+      setRecording(false);
+    }
+  };
+
+  const upload = async () => {
+    if (!preview || saving) return;
+    setSaving(true);
+    setError(false);
+    try {
+      const res = await fetch("/api/voice-bio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId, audio: preview }),
+      });
+      if (!res.ok) throw new Error("voice-bio upload failed");
+      const d = await res.json();
+      if (!liveRef.current) return;
+      setBio({ hasVoiceBio: Boolean(d.hasVoiceBio), audio: d.audio ?? preview });
+      setPreview(null);
+      setElapsed(0);
+    } catch {
+      if (liveRef.current) setError(true);
+    } finally {
+      if (liveRef.current) setSaving(false);
+    }
+  };
+
+  const togglePlay = () => {
+    const src = bio?.audio;
+    if (!src) return;
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio(src);
+        audioRef.current.onended = () => {
+          if (liveRef.current) setPlaying(false);
+        };
+        audioRef.current.onerror = () => {
+          if (liveRef.current) setPlaying(false);
+        };
+      } else if (audioRef.current.src !== src) {
+        audioRef.current.src = src;
+        setPlaying(false);
+      }
+      if (playing) {
+        audioRef.current.pause();
+        setPlaying(false);
+      } else {
+        const p = audioRef.current.play();
+        if (p && typeof p.catch === "function") {
+          p.catch(() => {
+            if (liveRef.current) setPlaying(false);
+          });
+        }
+        setPlaying(true);
+      }
+    } catch {
+      if (liveRef.current) setPlaying(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-emerald-200 bg-white/70 p-3">
+      <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800">
+        <Mic className="h-3.5 w-3.5 text-emerald-700" />
+        {t("bio.title", lang)}
+      </div>
+      <p className="mt-0.5 text-[10px] leading-relaxed text-stone-500">{t("bio.sub", lang)}</p>
+
+      {!canRecord ? (
+        // Graceful degradation: headless browsers / older Android — the rest of
+        // the passport keeps working, no console errors.
+        <p className="mt-2 text-xs italic text-stone-500">{t("bio.unsupported", lang)}</p>
+      ) : recording ? (
+        <button
+          type="button"
+          onClick={stopRecording}
+          aria-label={t("common.stop", lang)}
+          className="mt-2 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-rose-500"
+        >
+          <span aria-hidden="true" className="h-2 w-2 animate-pulse rounded-full bg-white" />
+          {tf("bio.recording", lang, { s: elapsed })}
+        </button>
+      ) : preview ? (
+        <div className="mt-2 space-y-2">
+          <audio controls src={preview} className="w-full" aria-label={t("bio.preview", lang)} />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={upload}
+              disabled={saving}
+              className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-600 disabled:opacity-60"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {t("bio.save", lang)}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPreview(null);
+                setElapsed(0);
+              }}
+              className="min-h-[44px] flex-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-bold text-stone-600 hover:border-emerald-500 hover:text-emerald-700"
+            >
+              {t("bio.retry", lang)}
+            </button>
+          </div>
+        </div>
+      ) : bio?.hasVoiceBio && bio.audio ? (
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={togglePlay}
+            aria-label={t(playing ? "a11y.bioPause" : "a11y.bioPlay", lang)}
+            className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-600"
+          >
+            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            {t("bio.play", lang)}
+          </button>
+          <button
+            type="button"
+            onClick={startRecording}
+            className="min-h-[44px] flex-1 rounded-xl border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
+          >
+            {t("bio.retry", lang)}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={startRecording}
+          className="mt-2 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-600"
+        >
+          <Mic className="h-4 w-4" />
+          {t("bio.record", lang)}
+        </button>
+      )}
+
+      {bio?.hasVoiceBio && !preview && (
+        <p
+          role="status"
+          className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-emerald-700"
+        >
+          <BadgeCheck className="h-3 w-3 shrink-0" /> {t("bio.saved", lang)}
+        </p>
+      )}
+      {error && (
+        <p className="mt-1.5 text-[10px] font-semibold text-red-700">{t("bio.error", lang)}</p>
+      )}
+    </div>
   );
 }
 

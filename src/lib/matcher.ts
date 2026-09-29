@@ -4,6 +4,28 @@ import type { StructuredProfile } from "./ai";
 // The AI never places anyone — it only proposes; this scorer is transparent
 // enough to show judges exactly WHY each match was made.
 
+/**
+ * MATCHER_VERSION — versioning contract (STARTUP_VISION.md §8 #3).
+ *
+ * - Bump this constant (v1 → v2 → …) on ANY scoring-semantics change: the
+ *   score formula/weights below, the GOAL_HINTS table, the reason strings,
+ *   or the profile/opportunity fields the scorer reads. Cosmetic refactors
+ *   that cannot change a score or a reason do NOT require a bump.
+ * - Every persisted Match row is stamped with the version that produced it
+ *   (`Match.matcherVersion`, written by /api/analyze), so any historical
+ *   score can be reproduced and audited — the Kenya DP Act §9 posture of
+ *   carrying a version on every automated decision.
+ * - Responses carry the version that PRODUCED them, never a
+ *   client-requested one: /api/analyze echoes `matcherVersion` at the top
+ *   level and per match. Consumers (NGOs, counties, SACCOs) should log the
+ *   version they received alongside the scores they used.
+ *
+ * v1: initial scorer — 0.55 × opportunity-tag coverage + 0.30 × skill-tag
+ * overlap, +0.08 for a second reason and +0.07 for a third, clamped to
+ * [0.05, 0.98] and rounded to 2 decimals.
+ */
+export const MATCHER_VERSION = "v1";
+
 const GOAL_HINTS: { words: string[]; types: string[]; reason: string }[] = [
   {
     words: ["online", "work online", "mtandaoni", "internet"],

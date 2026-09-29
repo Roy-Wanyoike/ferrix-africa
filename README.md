@@ -58,8 +58,13 @@ Informal workers have no way to prove experience. Ferrix builds a **portable, ve
 
 ### 3. Voice-first, bilingual, offline-safe
 - Speak instead of type — Web Speech API input, one-tap listen buttons, auto-read mode.
+- **Audible work passport ("Sikiliza Passport Yako")** — one tap reads the worker's verified record aloud in natural Kiswahili/English, so trust works for low-literacy users and clients alike.
+- **Voice bio on the passport** — a 20-second self-recorded intro in the worker's own voice (recorded, stored, played back in-app).
+- **Spoken match explanations** — every "why this matches you" is playable, not just readable.
+- **Optional voice-interview intake** — a turn-based agent asks one question at a time, out loud; answers via mic or keyboard.
 - Full **English + Kiswahili** UI, and the AI mirrors the worker's language (including Sheng-friendly input).
 - Hybrid AI architecture: live LLM when reachable, **scripted Swahili fallback when not** — the demo cannot die mid-pitch on venue Wi-Fi. Fallback responses are honestly labeled in the UI.
+- **WhatsApp channel-ready** — a Cloud API webhook with signature verification and the `ChannelAdapter` seam ships in-repo (`docs/CHANNELS.md`); voice-note intake plugs in the moment STT keys are added.
 
 ### 4. Real market jobs, not tech-bubble jobs
 The opportunity feed covers what the market actually offers, with Nairobi-realistic pay ranges: **mama fua day gigs, house help, laundry services, residential plumbers (fundi maji), certified electricians (fundi stima), welders, carpenters, masons, painters, fridge & AC technicians, car mechanics, phone repair, tuk-tuk drivers, barbers** — alongside Ajira Digital / NITA certification paths and online microwork for those who want the digital leap.
@@ -145,18 +150,26 @@ You can deploy with one click — then make **two small changes** first:
 | **Voice input needs HTTPS** | Web Speech API requires a secure context. | Non-issue on Vercel (automatic HTTPS). Note: iOS Safari support is patchy — Kenya's Android/Chrome majority is unaffected. |
 | **Seeding is a one-off, not a build step** | `db:seed` is a script, not a migration. | Run it once locally pointed at the remote `DATABASE_URL`. |
 
-**Security posture (demo):** the demo ships without authentication — coordinator actions and the cases API are open by design for one-click judging; production roadmap adds phone-OTP auth, rate limiting is already applied to AI-cost routes, and no secrets are committed. Do not host real worker PII on the public demo.
+**Security posture (demo):** the demo ships in open-demo mode by design — when `FERRIX_API_TOKEN` is unset, mutating API routes are open so judges can click the full pipeline with zero setup. Setting the token enforces auth (`Authorization: Bearer` / `x-api-key`) on **every** mutating route, and every `/api/*` response stamps an `x-ferrix-auth: open-demo | enforced` header for auditors. Rate limiting is applied to AI-cost routes, all bodies are zod-validated, and no secrets are committed. Do not host real worker PII on the public demo.
+
+**Documentation:**
+
+| Doc | What's inside |
+|---|---|
+| [`docs/STARTUP_VISION.md`](docs/STARTUP_VISION.md) | The big-dream startup blueprint — market, voice strategy, moat, funding, 90-day plan |
+| [`docs/API.md`](docs/API.md) · [`docs/openapi.json`](docs/openapi.json) | Full API reference + OpenAPI 3.1 spec (auth contract, error shapes, versioned matcher) |
+| [`docs/CHANNELS.md`](docs/CHANNELS.md) | Channel architecture: `ChannelAdapter` interface, WhatsApp Cloud API webhook setup, USSD/SMS roadmap |
+| [`ISSUES.md`](ISSUES.md) | Issue registry — 55 audit issues + build-cycle 2, every item closed or verified |
 
 ### Roadmap (post-hackathon)
 
 > **Startup vision:** the full big-dream blueprint — market sizing, ElevenLabs-inspired voice strategy, moat/flywheel design, funding roadmap and the 90-day plan — lives in [`docs/STARTUP_VISION.md`](docs/STARTUP_VISION.md).
 
-1. **WhatsApp Business API** — voice-note intake behind a `ChannelAdapter` interface; service-window messages are free, putting Ferrix where workers already are.
-2. **Audible work passport ("Sikiliza Passport Yako")** — TTS reads the passport aloud in Kiswahili, so trust works for low-literacy users and clients alike.
-3. **Postgres + multi-tenancy (`orgId`)**, coordinator auth (phone OTP), organization accounts for SACCOs/NGOs/counties.
-4. **Sheng-normalization layer** — LLM post-ASR pass making Ferrix the only tool that understands how young Nairobi actually talks; collects the correction dataset nobody else has.
-5. **Verified-outcome flywheel** — post-job verification calls stamp badges on signed, worker-owned passports that become lender-grade credit data.
-6. **Offline USSD/IVR path** — feature-phone intake for the lowest-literacy, lowest-data users (the Jacaranda/Viamo pattern).
+1. **WhatsApp voice-note intake in production** — the webhook + `ChannelAdapter` seam and text intake ship today (docs/CHANNELS.md); add Whisper/Google `sw-KE` STT keys and Meta app review to go live.
+2. **Postgres + multi-tenancy (`orgId`)**, per-account coordinator auth (phone OTP, beyond the shipped API-token gate), organization accounts for SACCOs/NGOs/counties.
+3. **Sheng-normalization layer** — LLM post-ASR pass making Ferrix the only tool that understands how young Nairobi actually talks; collects the correction dataset nobody else has.
+4. **Verified-outcome flywheel** — post-job verification calls stamp badges on signed, worker-owned passports that become lender-grade credit data.
+5. **Offline USSD/IVR path** — feature-phone intake for the lowest-literacy, lowest-data users (the Jacaranda/Viamo pattern).
 
 ## Hackathon alignment
 

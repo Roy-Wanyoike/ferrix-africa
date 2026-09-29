@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authModeHeaders, requireMutatingAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { serializeCase } from "@/lib/serialize";
 import { casePatchSchema, safeJson, validateBody } from "@/lib/validate";
@@ -47,6 +48,11 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // SEC-01: enforced-mode gate (401) before any validation or DB work.
+  // In open demo mode (FERRIX_API_TOKEN unset) this is a no-op returning null.
+  const guard = requireMutatingAuth(req);
+  if (guard) return guard;
+
   try {
     const { id } = await params;
 
@@ -205,7 +211,11 @@ export async function PATCH(
       return status;
     });
 
-    return NextResponse.json({ ok: true, caseId: id, status: finalStatus });
+    // SEC-01: stamp the auth mode so auditors can see open-demo vs enforced.
+    return NextResponse.json(
+      { ok: true, caseId: id, status: finalStatus },
+      { headers: { ...authModeHeaders() } }
+    );
   } catch (err) {
     console.error("[case patch] error:", err);
     return NextResponse.json({ error: "Action failed" }, { status: 500 });

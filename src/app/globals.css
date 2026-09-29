@@ -119,6 +119,10 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* QA 5-b P3: anchored elements land clear of any sticky/fixed chrome. */
+  html {
+    scroll-padding-top: 5rem;
+  }
   /* FE-06: clear, high-contrast keyboard focus on all interactive elements
      (emerald-700; coexists with shadcn Button's focus ring). */
   :focus-visible {

@@ -1,0 +1,1968 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Ferrix API (Ajira Copilot)",
+    "version": "1.0.0",
+    "summary": "Voice-first worker intake, explainable matching, and the human trust pipeline — as a public API.",
+    "description": "Ferrix (Ajira Copilot) public API. Auth contract: mutating routes require 'Authorization: Bearer $FERRIX_API_TOKEN' (or 'x-api-key') when that env var is set; unset = open judge demo. EVERY response carries the 'x-ferrix-auth' header (open-demo | enforced). Hand-maintained; kept in lockstep with docs/API.md and the QA suites.",
+    "contact": {
+      "name": "Ferrix (Ajira Copilot)",
+      "url": "https://github.com/"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local dev server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Stats",
+      "description": "Aggregate trust-pipeline metrics (open read)."
+    },
+    {
+      "name": "Chat",
+      "description": "Conversational intake — creates the candidate and builds the transcript (guarded mutation)."
+    },
+    {
+      "name": "Analyze",
+      "description": "Structured profile + versioned explainable matches + case handoff (guarded mutation)."
+    },
+    {
+      "name": "Cases",
+      "description": "Coordinator trust pipeline: AI proposes, humans place (GET open, PATCH guarded)."
+    },
+    {
+      "name": "Track record",
+      "description": "The worker's portable, human-verified work passport (GET open, POST guarded)."
+    },
+    {
+      "name": "Assets",
+      "description": "WhatsApp-ready catalog / plain-text CV generation (guarded mutation)."
+    }
+  ],
+  "paths": {
+    "/api/stats": {
+      "get": {
+        "operationId": "getStats",
+        "tags": [
+          "Stats"
+        ],
+        "summary": "Pipeline metrics (open read)",
+        "description": "Candidates assessed, placements/resolutions, median time to first human contact, and count of human-verified coordinator actions. No auth.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Current pipeline metrics.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/chat": {
+      "post": {
+        "operationId": "postChat",
+        "tags": [
+          "Chat"
+        ],
+        "summary": "Send an intake message / start a conversation (guarded mutation)",
+        "description": "Single endpoint for the whole intake conversation.\n\n- With `persona` and no `candidateId`: mints a candidate, seeds the persona baseline and the AI intro message.\n- With `candidateId` + `message`: appends the user message, asks the LLM for the next ONE intake question, appends the assistant reply, and returns the full transcript.\n- With `candidateId` and no `message`: returns the transcript without advancing (`mode: \"idle\"`).\n\nNotes: `lang` is accepted as a tolerant alias of `language`. If the LLM is unavailable the route still answers 200 with a scripted reply and `mode: \"fallback\"` (the demo can't die).\n\nThere is no `GET /api/chat` — transcripts arrive in this response or via the case payload.\n\nRate limit: 60 requests/min per IP (429 with `Retry-After`).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transcript + next stage. `mode` is `live` (LLM reply), `fallback` (scripted reply) or `idle` (no message sent).",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON, message over 2000 chars / empty after trim, or neither a message nor a persona to create.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Candidate not found (stale/garbage `candidateId`).",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-IP rate limit exceeded (60/min).",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the window resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/analyze": {
+      "post": {
+        "operationId": "postAnalyze",
+        "tags": [
+          "Analyze"
+        ],
+        "summary": "Structure the profile, score matches, open/refresh the case (guarded mutation)",
+        "description": "Runs the transcript of `candidateId` through the LLM to produce a Zod-shaped `StructuredProfile` (scripted persona fallback if the LLM fails), persists it, then scores active opportunities with the deterministic explainable matcher.\n\nEvery persisted `Match` row is stamped with `matcherVersion`, and the response echoes it (top level + per match). `DELETE`-and-recreate semantics: prior matches for the candidate are replaced. Reuses the candidate's open (non-resolved) case instead of minting a duplicate; creates a case (`AJR-…` ref) with `structured` events otherwise.\n\n`mode` is `live` when the LLM produced the profile, `fallback` when the persona baseline was used.\n\nRate limit: 10 requests/min per IP (LLM-heavy; 429 with `Retry-After`).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Structured profile, ranked explainable matches (max 4), and the target case.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyzeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or body failing the Zod contract (`candidateId` required).",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Candidate not found.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-IP rate limit exceeded (10/min).",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the window resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/cases": {
+      "get": {
+        "operationId": "listCases",
+        "tags": [
+          "Cases"
+        ],
+        "summary": "List coordinator cases with candidate, matches and events (open read)",
+        "description": "All cases ordered by status then newest-first, serialized through the shared `serializeCase` shape (identical to the single-case GET). JSON-string columns are parsed defensively — a corrupt row cannot 500 the list.\n\nThere is no `POST /api/collect`-style create here: cases are minted by `/api/analyze` (AI handoff), not by clients.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Case list.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseListResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/cases/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/CaseId"
+        }
+      ],
+      "get": {
+        "operationId": "getCase",
+        "tags": [
+          "Cases"
+        ],
+        "summary": "Case detail (open read)",
+        "description": "Same case shape as the list endpoint, including the candidate's ranked matches (each with human-readable `reasons`) and the append-only case events (actor: AI / Coordinator / System).",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Case detail.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Case not found.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchCase",
+        "tags": [
+          "Cases"
+        ],
+        "summary": "Advance the trust pipeline (guarded mutation)",
+        "description": "Human coordinator action. Enforced state machine (`Invalid transition: …` 400 otherwise):\n\n| action | required current status | new status |\n|---|---|---|\n| `accept` | `new` | `accepted` (auto-assigns mentor, opens verification checklist) |\n| `contact` | `accepted` | `contacted` |\n| `place` | `contacted` | `placed` — requires `opportunityId`; writes a verified PLACEMENT track-record entry |\n| `resolve` | `placed` | `resolved` |\n| `note` | any | unchanged — requires `note` |\n\n`place` on an already-`placed` case and `resolve` on an already-`resolved` case answer `409`. All writes (case status, candidate status, events, track-record entry) run in one transaction — no partial state.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchCaseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Action applied.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchCaseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON, unknown action, invalid transition for the current status, `note` missing for `note`, or `opportunityId` missing for `place`.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Case not found, or the `opportunityId` given for `place` does not exist.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Case already placed (`place`) or already resolved (`resolve`).",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/track-record": {
+      "get": {
+        "operationId": "getTrackRecord",
+        "tags": [
+          "Track record"
+        ],
+        "summary": "Worker's verified work passport (open read)",
+        "description": "Verified passport entries (PLACEMENT / TRAINING / REVIEW) for `candidateId`, newest first, plus a summary (counts, average review rating, verified count, last verified date). Unknown candidate → 404, missing query param → 400.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "candidateId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Candidate whose passport to read."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entries + summary.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackRecordResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`candidateId` query parameter missing.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Candidate not found.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postTrackRecord",
+        "tags": [
+          "Track record"
+        ],
+        "summary": "Add a verified passport entry (guarded mutation)",
+        "description": "A human coordinator adds a verified entry (placement, completed training, or employer review) to the worker's passport. Entries are stored `verified: true` with `verifiedBy` (defaults to `\"Coordinator (Ujuzi Hub)\"`); `rating` is only stored for REVIEW entries. `occurredAt` accepts any parseable datetime string and defaults to now.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackRecordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Entry created.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "entry"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "entry": {
+                      "$ref": "#/components/schemas/TrackRecordEntry"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or body failing the Zod contract (kind enum, title 1–200 chars, rating 1–5, valid `occurredAt`).",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Candidate not found.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/asset": {
+      "post": {
+        "operationId": "postAsset",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Generate a WhatsApp catalog or plain-text CV (guarded mutation)",
+        "description": "Uses the candidate's persisted structured profile (so `/api/analyze` must have run first, else `400 \"Profile the candidate first\"`) to generate either a `catalog` (WhatsApp-ready stock list) or a `cv` (plain-text CV). Falls back to a deterministic template (mode `fallback`) when the LLM is unavailable.\n\nThere is no `GET /api/asset` — assets are generated on demand, not stored.\n\nRate limit: 20 requests/min per IP (429 with `Retry-After`).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Generated text; `mode` is `generated` (LLM) or `fallback` (template).",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON, bad `kind`, or the candidate has no structured profile yet.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Candidate not found.",
+            "headers": {
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-IP rate limit exceeded (20/min).",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the window resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-ferrix-auth": {
+                "$ref": "#/components/headers/XFerrixAuth"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/voice-bio": {
+      "get": {
+        "operationId": "getVoiceBio",
+        "tags": [
+          "Voice bio"
+        ],
+        "summary": "Check whether a candidate has a recorded voice bio (open read)",
+        "description": "Returns `hasVoiceBio` and, when present, the stored base64 data-URL audio (the worker's self-recorded passport intro, max 25s / 1.5MB).",
+        "security": [],
+        "parameters": [
+          {
+            "name": "candidateId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Candidate id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Voice bio status.",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "hasVoiceBio": {
+                      "type": "boolean"
+                    },
+                    "audio": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "candidateId missing.",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            }
+          },
+          "404": {
+            "description": "Candidate not found.",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "postVoiceBio",
+        "tags": [
+          "Voice bio"
+        ],
+        "summary": "Persist a candidate's self-recorded voice bio (guarded mutation)",
+        "description": "Body: `{ candidateId, audio }` where `audio` is a base64 `data:audio/` URL (MediaRecorder webm/mp4/ogg). Body must be <= 1.5MB. The bio plays back on the work passport so clients can hear the worker before hiring. Consent-native: the worker records it themselves.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stored.",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "hasVoiceBio": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON or audio not a data:audio/ URL.",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            }
+          },
+          "401": {
+            "description": "Auth enforced and token missing/invalid.",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            }
+          },
+          "404": {
+            "description": "Candidate not found.",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            }
+          },
+          "413": {
+            "description": "Audio exceeds the 1.5MB cap.",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            }
+          },
+          "429": {
+            "description": "Rate limited (30/min/IP).",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            }
+          }
+        }
+      }
+    },
+    "/api/channels/whatsapp": {
+      "get": {
+        "operationId": "whatsappVerify",
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Meta webhook verification handshake (open)",
+        "description": "Meta Cloud API subscription handshake. Requires `hub.mode=subscribe`, `hub.verify_token` matching `WHATSAPP_VERIFY_TOKEN`, returns `hub.challenge` verbatim. Unset/wrong token -> 403 bilingual JSON. See docs/CHANNELS.md.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "hub.mode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.verify_token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.challenge",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Challenge echoed (plain text).",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            }
+          },
+          "403": {
+            "description": "Verification failed or token not configured.",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "whatsappInbound",
+        "summary": "Inbound WhatsApp messages (webhook)",
+        "tags": [
+          "Channels"
+        ],
+        "description": "Receives Meta Cloud API events. Signature: `X-Hub-Signature-256` HMAC-SHA256 verified when `WHATSAPP_APP_SECRET` is set (mismatch -> 401); unset secret = documented open-demo mode (unsigned accepted). Text messages are persisted, profiled via the same intake engine as /api/chat, and answered (reply echoed in the JSON response; outbound send is a logged no-op until `WHATSAPP_ACCESS_TOKEN`/`WHATSAPP_PHONE_NUMBER_ID` are set). Voice notes are acknowledged with an STT-roadmap notice. ALWAYS answers 200 to Meta (never 500); per-sender throttle and externalId idempotency applied.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Event batch processed.",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "EVENTS_PROCESSED": {
+                      "type": "integer"
+                    },
+                    "idempotentSkips": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "throttled": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
+                    "reply": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signature mismatch (WHATSAPP_APP_SECRET set).",
+            "headers": {
+              "$ref": "#/components/headers/XFerrixAuth"
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "FERRIX_API_TOKEN. Required on mutating endpoints only when the deployment sets FERRIX_API_TOKEN (auth mode `enforced`; watch the `x-ferrix-auth` response header). `x-api-key: <token>` is accepted as an equivalent alternative header. In open demo mode (`x-ferrix-auth: open-demo`) no token is needed."
+      }
+    },
+    "headers": {
+      "XFerrixAuth": {
+        "description": "Auth mode of the deployment for this request: `open-demo` (mutations open) or `enforced` (mutations require the token). Contract: every response carries it — today it is verifiably present on success responses and 401 auth rejections; the shared 400/404/429 helpers are being wired to stamp it as well.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "open-demo",
+            "enforced"
+          ]
+        }
+      }
+    },
+    "parameters": {
+      "CaseId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Case id (cuid)."
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Auth is enforced and the caller did not present the coordinator token (`Authorization: Bearer <token>` or `x-api-key`).",
+        "headers": {
+          "x-ferrix-auth": {
+            "$ref": "#/components/headers/XFerrixAuth"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "Unexpected server error.",
+        "headers": {
+          "x-ferrix-auth": {
+            "$ref": "#/components/headers/XFerrixAuth"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Short machine-readable error (first Zod issue message, or a stable label)."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable detail. Present on 401 auth failures."
+          }
+        }
+      },
+      "StatsResponse": {
+        "type": "object",
+        "required": [
+          "candidatesAssessed",
+          "placements",
+          "resolved",
+          "medianFirstContact",
+          "humanVerifiedActions"
+        ],
+        "properties": {
+          "candidatesAssessed": {
+            "type": "integer",
+            "description": "Candidates with a structured profile."
+          },
+          "placements": {
+            "type": "integer",
+            "description": "Cases in status placed or resolved."
+          },
+          "resolved": {
+            "type": "integer"
+          },
+          "medianFirstContact": {
+            "type": "string",
+            "description": "Median hours from case creation to first Coordinator event, formatted (e.g. \"3.5 hrs\", \"—\" when none)."
+          },
+          "humanVerifiedActions": {
+            "type": "integer",
+            "description": "Count of Coordinator case events."
+          }
+        }
+      },
+      "ChatRequest": {
+        "type": "object",
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Existing candidate. Omit + send persona to mint one."
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "Trimmed by the server; empty-after-trim and >2000 chars are rejected."
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "sw"
+            ]
+          },
+          "lang": {
+            "type": "string",
+            "enum": [
+              "en",
+              "sw"
+            ],
+            "description": "Tolerant alias of `language`."
+          },
+          "persona": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Persona key to mint a candidate from: mama_fua | mama_mboga | boda | cashier | fundi."
+          }
+        },
+        "description": "Either `candidateId`, or `message` and/or `persona`."
+      },
+      "ChatMessage": {
+        "type": "object",
+        "required": [
+          "id",
+          "candidateId",
+          "role",
+          "content",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ChatResponse": {
+        "type": "object",
+        "required": [
+          "candidateId",
+          "messages",
+          "stage",
+          "mode"
+        ],
+        "properties": {
+          "candidateId": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            }
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "greet",
+              "work",
+              "digital",
+              "goal",
+              "limits",
+              "ready"
+            ],
+            "description": "Intake stage the next reply addresses."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fallback",
+              "idle"
+            ]
+          }
+        }
+      },
+      "AnalyzeRequest": {
+        "type": "object",
+        "required": [
+          "candidateId"
+        ],
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "StructuredProfile": {
+        "type": "object",
+        "required": [
+          "name",
+          "summary",
+          "skills",
+          "tags",
+          "experience",
+          "digitalLiteracy",
+          "availability",
+          "goal",
+          "constraints",
+          "confidence",
+          "aiSummary",
+          "verificationFlags"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Lowercase slug tags used by the matcher (e.g. \"customer-service\")."
+          },
+          "experience": {
+            "type": "string"
+          },
+          "digitalLiteracy": {
+            "type": "string"
+          },
+          "availability": {
+            "type": "string"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "constraints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.3,
+            "maximum": 0.99
+          },
+          "aiSummary": {
+            "type": "string",
+            "description": "AI narration; always recommends human verification before placement."
+          },
+          "verificationFlags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "OpportunityRef": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "type",
+          "provider",
+          "location",
+          "payRange",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "COURSE",
+              "GIG",
+              "JOB",
+              "MICROWORK"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "payRange": {
+            "type": "string"
+          },
+          "duration": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "AnalyzeMatch": {
+        "type": "object",
+        "required": [
+          "matcherVersion",
+          "id",
+          "score",
+          "reasons",
+          "opportunity"
+        ],
+        "properties": {
+          "matcherVersion": {
+            "type": "string",
+            "const": "v1",
+            "description": "Scorer version that produced this score."
+          },
+          "id": {
+            "type": "string",
+            "description": "Opportunity id."
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0.05,
+            "maximum": 0.98
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Human-readable explanations (why this match)."
+          },
+          "opportunity": {
+            "$ref": "#/components/schemas/OpportunityRef"
+          }
+        }
+      },
+      "AnalyzeCaseSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "ref",
+          "priority",
+          "status",
+          "request"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string",
+            "description": "Human reference, e.g. AJR-1007."
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "high",
+              "normal",
+              "low"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "accepted",
+              "contacted",
+              "placed",
+              "resolved"
+            ]
+          },
+          "request": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The candidate's stated goal."
+          }
+        }
+      },
+      "AnalyzeResponse": {
+        "type": "object",
+        "required": [
+          "matcherVersion",
+          "profile",
+          "matches",
+          "case",
+          "mode"
+        ],
+        "properties": {
+          "matcherVersion": {
+            "type": "string",
+            "const": "v1",
+            "description": "Version of the matcher that produced these scores; also stamped on each persisted Match row."
+          },
+          "profile": {
+            "$ref": "#/components/schemas/StructuredProfile"
+          },
+          "matches": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "$ref": "#/components/schemas/AnalyzeMatch"
+            }
+          },
+          "case": {
+            "$ref": "#/components/schemas/AnalyzeCaseSummary"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fallback"
+            ],
+            "description": "How the profile was produced (LLM vs persona baseline)."
+          }
+        }
+      },
+      "CaseCandidate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "personaLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "sw"
+            ]
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "experience": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "digitalLiteracy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "availability": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "goal": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "constraints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "aiSummary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "profile": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/StructuredProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "language",
+          "skills",
+          "constraints"
+        ]
+      },
+      "CaseMatch": {
+        "type": "object",
+        "required": [
+          "id",
+          "score",
+          "reasons",
+          "opportunity"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "opportunity": {
+            "$ref": "#/components/schemas/OpportunityRef"
+          }
+        },
+        "description": "Persisted match as read back from the database. Carries no matcherVersion today (see docs/API.md — serializer is owned by the cases engineer)."
+      },
+      "CaseEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "actor",
+          "action",
+          "detail",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string",
+            "enum": [
+              "AI",
+              "Coordinator",
+              "System"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "description": "structured | assigned | accepted | contacted | placed | resolved | note | mentor_requested"
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Case": {
+        "type": "object",
+        "required": [
+          "id",
+          "ref",
+          "priority",
+          "status",
+          "request",
+          "assignedTo",
+          "createdAt",
+          "updatedAt",
+          "candidate",
+          "matches",
+          "events"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "high",
+              "normal",
+              "low"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "accepted",
+              "contacted",
+              "placed",
+              "resolved"
+            ]
+          },
+          "request": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assignedTo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/CaseCandidate"
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaseMatch"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaseEvent"
+            }
+          }
+        }
+      },
+      "CaseResponse": {
+        "type": "object",
+        "required": [
+          "case"
+        ],
+        "properties": {
+          "case": {
+            "$ref": "#/components/schemas/Case"
+          }
+        }
+      },
+      "CaseListResponse": {
+        "type": "object",
+        "required": [
+          "cases"
+        ],
+        "properties": {
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Case"
+            }
+          }
+        }
+      },
+      "PatchCaseRequest": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "contact",
+              "place",
+              "resolve",
+              "note"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "description": "Required for action=note; otherwise becomes the contacted/resolved event detail."
+          },
+          "opportunityId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Required for action=place."
+          }
+        }
+      },
+      "PatchCaseResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "caseId",
+          "status"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          },
+          "caseId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "accepted",
+              "contacted",
+              "placed",
+              "resolved"
+            ]
+          }
+        }
+      },
+      "TrackRecordEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "candidateId",
+          "kind",
+          "title",
+          "verified",
+          "occurredAt",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PLACEMENT",
+              "TRAINING",
+              "REVIEW"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "org": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 5,
+            "description": "REVIEW entries only."
+          },
+          "verified": {
+            "type": "boolean",
+            "const": true
+          },
+          "verifiedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TrackRecordResponse": {
+        "type": "object",
+        "required": [
+          "entries",
+          "summary"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackRecordEntry"
+            }
+          },
+          "summary": {
+            "type": "object",
+            "required": [
+              "placements",
+              "trainings",
+              "reviews",
+              "avgRating",
+              "verifiedCount",
+              "lastVerifiedAt"
+            ],
+            "properties": {
+              "placements": {
+                "type": "integer"
+              },
+              "trainings": {
+                "type": "integer"
+              },
+              "reviews": {
+                "type": "integer",
+                "description": "REVIEW entries that carry a rating."
+              },
+              "avgRating": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "Mean review rating, 1 decimal; null when no rated reviews."
+              },
+              "verifiedCount": {
+                "type": "integer"
+              },
+              "lastVerifiedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "TrackRecordRequest": {
+        "type": "object",
+        "required": [
+          "candidateId",
+          "kind",
+          "title"
+        ],
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PLACEMENT",
+              "TRAINING",
+              "REVIEW"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "org": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 5
+          },
+          "occurredAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "verifiedBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          }
+        }
+      },
+      "AssetRequest": {
+        "type": "object",
+        "required": [
+          "candidateId",
+          "kind"
+        ],
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "catalog",
+              "cv"
+            ]
+          }
+        }
+      },
+      "AssetResponse": {
+        "type": "object",
+        "required": [
+          "text",
+          "mode"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "generated",
+              "fallback"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

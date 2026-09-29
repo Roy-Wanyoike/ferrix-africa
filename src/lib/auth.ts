@@ -13,24 +13,8 @@
 //   const guard = requireMutatingAuth(req);   // returns Response | null
 //   if (guard) return guard;
 
-export const AUTH_HEADER_NAMES = ["authorization", "x-api-key"] as const;
-
 export const isAuthEnforced = (): boolean =>
   Boolean(process.env.FERRIX_API_TOKEN && process.env.FERRIX_API_TOKEN.length >= 8);
-
-const extractPresentedToken = (req: Request): string | null => {
-  for (const name of AUTH_HEADER_NAMES) {
-    const raw = req.headers.get(name);
-    if (!raw) continue;
-    if (name === "authorization") {
-      const match = /^Bearer\s+(.+)$/i.exec(raw.trim());
-      if (match) return match[1].trim();
-      return raw.trim();
-    }
-    return raw.trim();
-  }
-  return null;
-};
 
 const bearerMatch = (raw: string): string | null => {
   const match = /^Bearer\s+(.+)$/i.exec(raw.trim());
